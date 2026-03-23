@@ -485,7 +485,7 @@ function Building3D(){
 function FloorSelector(){
   const {active,setActive}=useE();
   return(
-    <div style={{position:'absolute',left:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10}}>
+    <div style={{position:'absolute',left:420,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10}}>
       {[...FLOORS].reverse().map(f=>(
         <button key={f.id} onClick={()=>setActive(f.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:11,fontWeight:active===f.id?700:400,color:active===f.id?'var(--green)':'var(--muted)',padding:'2px 4px',transition:'color .15s'}}>{f.label}</button>
       ))}
@@ -520,7 +520,7 @@ function BuildingView(){
   const [tab,setTab]=useState('Building');
   const isBuilding=tab==='Building';
   return(
-    <div style={{flex:1,position:'relative',overflow:'hidden'}}>
+    <div style={{position:'absolute',inset:0}}>
       <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',display:'flex',gap:4,zIndex:10,background:'rgba(13,24,41,.85)',border:'1px solid var(--border)',borderRadius:8,padding:4}}>
         {['City','District','Street','Building'].map(t=>{const a=t===tab;return(
           <button key={t} onClick={()=>setTab(t)} style={{padding:'5px 16px',borderRadius:5,fontSize:12,fontWeight:a?600:400,color:a?'#fff':'var(--muted)',background:a?'var(--active-tab)':'transparent',border:'none',cursor:'pointer'}}>{t}</button>
@@ -554,14 +554,14 @@ function App(){
     <EProvider>
       <div style={{display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden'}}>
         <TopNav/>
-        <div style={{display:'flex',flex:1,overflow:'hidden'}}>
-          <div style={{width:400,flexShrink:0,display:'flex',flexDirection:'column',gap:8,padding:12,overflowY:'auto'}}>
+        <div style={{flex:1,position:'relative',overflow:'hidden'}}>
+          <BuildingView/>
+          <div style={{position:'absolute',left:0,top:0,width:400,height:'100%',display:'flex',flexDirection:'column',gap:8,padding:12,overflowY:'auto',zIndex:5}}>
             <AISuggestionPanel/>
             <EnergyChart/>
             <StatsCards/>
             <SavingsChart/>
           </div>
-          <BuildingView/>
         </div>
       </div>
     </EProvider>
