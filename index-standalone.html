@@ -96,12 +96,12 @@ const {useState,useEffect,useRef,useCallback,createContext,useContext}=React;
 /* ══════════════════ MOCK DATA ══════════════════════════════════ */
 const FLOORS=[
   {id:17,label:'17F',consumption:180,optimized:135,hl:false},
-  {id:16,label:'16F',consumption:210,optimized:158,hl:true },
-  {id:15,label:'15F',consumption:245,optimized:184,hl:true },
-  {id:14,label:'14F',consumption:332,optimized:204,hl:true },
+  {id:16,label:'16F',consumption:210,optimized:158,hl:false},
+  {id:15,label:'15F',consumption:245,optimized:184,hl:false},
+  {id:14,label:'14F',consumption:332,optimized:204,hl:false},
   {id:13,label:'13F',consumption:198,optimized:149,hl:false},
   {id:12,label:'12F',consumption:172,optimized:129,hl:false},
-  {id:11,label:'11F',consumption:155,optimized:116,hl:false},
+  {id:11,label:'11F',consumption:152,optimized:116,hl:true },
 ];
 const BAR=[
   {t:'06:00',c:144,o:220},{t:'',c:220,o:284},{t:'12:00',c:190,o:346},{t:'',c:151,o:262},
@@ -120,7 +120,7 @@ const useE=()=>useContext(ECtx);
 
 function EProvider({children}){
   const [floors,setFloors]=useState(()=>FLOORS.map(f=>({...f,live:f.consumption,alert:false})));
-  const [active,setActive]=useState(14);
+  const [active,setActive]=useState(11);
   useEffect(()=>{
     const id=setInterval(()=>{
       setFloors(prev=>prev.map(f=>{
@@ -141,7 +141,7 @@ function TopNav(){
         <div style={{width:28,height:28,borderRadius:6,background:'linear-gradient(135deg,#3b82f6,#22c55e)',display:'flex',alignItems:'center',justifyContent:'center'}}>
           <svg width="16" height="16" fill="none"><path d="M2 12L5 6L8 9L11 4L14 8" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </div>
-        <span style={{fontSize:14,fontWeight:600,whiteSpace:'nowrap'}}>Smart City Platform</span>
+        <span style={{fontSize:18,fontWeight:600,whiteSpace:'nowrap'}}>Smart City Platform</span>
       </div>
       <div style={{width:28,height:28,borderRadius:'50%',background:'linear-gradient(135deg,#6366f1,#8b5cf6)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:600}}>A</div>
     </nav>
@@ -514,7 +514,7 @@ function BuildingView(){
       <FloorSelector/>
       <MapControls/>
       <p style={{position:'absolute',bottom:47,left:0,right:0,textAlign:'center',fontSize:14,fontWeight:600,color:'rgba(255,255,255,0.25)',whiteSpace:'nowrap',pointerEvents:'none',zIndex:10}}>
-        这是2026年3月20日，figma和claude code 联动生成的效果
+        这是2026年3月23日，figma和claude code 联动生成的效果
       </p>
     </div>
   );
@@ -527,7 +527,7 @@ function App(){
       <div style={{display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden'}}>
         <TopNav/>
         <div style={{display:'flex',flex:1,overflow:'hidden'}}>
-          <div style={{width:380,flexShrink:0,display:'flex',flexDirection:'column',gap:8,padding:12,overflowY:'auto'}}>
+          <div style={{width:400,flexShrink:0,display:'flex',flexDirection:'column',gap:8,padding:12,overflowY:'auto'}}>
             <AISuggestionPanel/>
             <EnergyChart/>
             <StatsCards/>
