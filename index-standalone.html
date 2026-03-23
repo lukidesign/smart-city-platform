@@ -508,20 +508,38 @@ function MapControls(){
   </>);
 }
 
+/* ══════════════════ CITY VIEW IMAGES ═══════════════════════════ */
+const VIEW_IMGS={
+  City:'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1920&q=80',
+  District:'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80',
+  Street:'https://images.unsplash.com/photo-1444723121867-7a241cacace9?w=1920&q=80',
+};
+
 /* ══════════════════ BUILDING VIEW ═══════════════════════════════ */
 function BuildingView(){
+  const [tab,setTab]=useState('Building');
+  const isBuilding=tab==='Building';
   return(
     <div style={{flex:1,position:'relative',overflow:'hidden'}}>
       <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',display:'flex',gap:4,zIndex:10,background:'rgba(13,24,41,.85)',border:'1px solid var(--border)',borderRadius:8,padding:4}}>
-        {['City','District','Street','Building'].map(t=>{const a=t==='Building';return(
-          <button key={t} style={{padding:'5px 16px',borderRadius:5,fontSize:12,fontWeight:a?600:400,color:a?'#fff':'var(--muted)',background:a?'var(--active-tab)':'transparent',border:'none',cursor:'pointer'}}>{t}</button>
+        {['City','District','Street','Building'].map(t=>{const a=t===tab;return(
+          <button key={t} onClick={()=>setTab(t)} style={{padding:'5px 16px',borderRadius:5,fontSize:12,fontWeight:a?600:400,color:a?'#fff':'var(--muted)',background:a?'var(--active-tab)':'transparent',border:'none',cursor:'pointer'}}>{t}</button>
         );})}
       </div>
-      <div style={{position:'absolute',top:60,right:70,zIndex:10,background:'rgba(10,20,40,.85)',border:'1px solid rgba(255,255,255,.12)',borderRadius:6,padding:'5px 10px',fontSize:12,pointerEvents:'none'}}>
-        Main Hospital Building
-      </div>
-      <Building3D/>
-      <FloorSelector/>
+      {isBuilding?(
+        <>
+          <div style={{position:'absolute',top:60,right:70,zIndex:10,background:'rgba(10,20,40,.85)',border:'1px solid rgba(255,255,255,.12)',borderRadius:6,padding:'5px 10px',fontSize:12,pointerEvents:'none'}}>
+            Main Hospital Building
+          </div>
+          <Building3D/>
+          <FloorSelector/>
+        </>
+      ):(
+        <div style={{position:'absolute',inset:0}}>
+          <img src={VIEW_IMGS[tab]} alt={tab} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
+          <div style={{position:'absolute',inset:0,background:'rgba(7,13,26,.15)'}}/>
+        </div>
+      )}
       <MapControls/>
       <p style={{position:'absolute',bottom:47,left:0,right:0,textAlign:'center',fontSize:14,fontWeight:600,color:'rgba(255,255,255,0.25)',whiteSpace:'nowrap',pointerEvents:'none',zIndex:10}}>
         这是2026年3月23日，figma和claude code 联动生成的效果
