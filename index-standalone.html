@@ -476,13 +476,13 @@ function Building3D({aiOpen=false}){
     renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
     el.appendChild(renderer.domElement);
 
-    // Lights — holographic blue-white glow matching reference
-    scene.add(new THREE.AmbientLight(0x6688bb,4));
-    const dl=new THREE.DirectionalLight(0xbbddff,3);dl.position.set(5,14,5);scene.add(dl);
-    const dl2=new THREE.DirectionalLight(0x99bbff,1.8);dl2.position.set(-5,10,-3);scene.add(dl2);
-    const pl=new THREE.PointLight(0x4499ff,8,22);pl.position.set(0,8,0);scene.add(pl);
-    const gl=new THREE.PointLight(0x22c55e,5,14);gl.position.set(0,3,0);scene.add(gl);
-    const rim=new THREE.PointLight(0xaaccff,4,18);rim.position.set(-6,6,-4);scene.add(rim);
+    // Lights — bright white-blue holographic matching reference
+    scene.add(new THREE.AmbientLight(0xc8e0ff,7));
+    const dl=new THREE.DirectionalLight(0xffffff,5);dl.position.set(5,14,5);scene.add(dl);
+    const dl2=new THREE.DirectionalLight(0xddeeff,3);dl2.position.set(-5,10,-3);scene.add(dl2);
+    const pl=new THREE.PointLight(0x88bbff,12,28);pl.position.set(0,8,0);scene.add(pl);
+    const gl=new THREE.PointLight(0x22c55e,6,16);gl.position.set(0,3,0);scene.add(gl);
+    const rim=new THREE.PointLight(0xffffff,5,20);rim.position.set(-6,6,-4);scene.add(rim);
 
     // OrbitControls
     const ctrl=new THREE.OrbitControls(camera,renderer.domElement);
@@ -494,11 +494,11 @@ function Building3D({aiOpen=false}){
     const meshes=[];
     FLOORS.forEach((f,i)=>{
       const mat=new THREE.MeshStandardMaterial({
-        color:f.hl?0x0d3d20:0x1a3870,
-        emissive:f.hl?0x22c55e:0x5599ee,
-        emissiveIntensity:f.hl?2.2:0.55,
-        transparent:true,opacity:f.hl?0.92:0.78,
-        roughness:0.08,metalness:0.65,
+        color:f.hl?0x0a4a1a:0x8ab8f0,
+        emissive:f.hl?0x22c55e:0xaaccff,
+        emissiveIntensity:f.hl?3.0:1.8,
+        transparent:true,opacity:f.hl?0.95:0.82,
+        roughness:0.04,metalness:0.25,
       });
       const geo=new THREE.BoxGeometry(FW,FH,FD);
       const mesh=new THREE.Mesh(geo,mat);
@@ -508,7 +508,7 @@ function Building3D({aiOpen=false}){
       // Edge lines — window grid effect
       const edges=new THREE.LineSegments(
         new THREE.EdgesGeometry(geo),
-        new THREE.LineBasicMaterial({color:f.hl?0x55ffaa:0x88ccff,transparent:true,opacity:f.hl?0.9:0.5})
+        new THREE.LineBasicMaterial({color:f.hl?0x88ffcc:0xddeeff,transparent:true,opacity:f.hl?1.0:0.85})
       );
       edges.position.copy(mesh.position);
       scene.add(edges);
@@ -554,8 +554,8 @@ function Building3D({aiOpen=false}){
         const mat=m.material;
         if(f?.alert){mat.emissive.setHex(0xef4444);mat.emissiveIntensity=1.2+Math.sin(t*5)*.8;}
         else if(m.userData.hl){mat.emissive.setHex(0x22c55e);mat.emissiveIntensity=1.2+Math.sin(t*2)*.4;}
-        else if(m.userData.id===active){mat.emissive.setHex(0x6699ff);mat.emissiveIntensity=Math.min(mat.emissiveIntensity+.06,.9);}
-        else{mat.emissive.setHex(0x3b82f6);mat.emissiveIntensity=Math.max(mat.emissiveIntensity-.04,.25);}
+        else if(m.userData.id===active){mat.emissive.setHex(0xbbddff);mat.emissiveIntensity=Math.min(mat.emissiveIntensity+.06,2.4);}
+        else{mat.emissive.setHex(0xaaccff);mat.emissiveIntensity=Math.max(mat.emissiveIntensity-.04,1.6);}
       });
       r1.rotation.z=t*.5;r2.rotation.z=-t*.3;
       rm1.opacity=.25+Math.sin(t*1.5)*.12;rm2.opacity=(.25+Math.sin(t*1.5)*.12)*.5;
@@ -763,9 +763,12 @@ function BuildingView({aiOpen=false,onToggle3D}){
           )}
           <div style={{position:'absolute',inset:0,background:'rgba(7,13,26,.15)'}}/>
           {tab==='Building'&&(<>
-            <div style={{position:'absolute',top:'28%',left:'50%',transform:'translateX(-50%)',background:'rgba(8,16,36,0.82)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:14,padding:'10px 28px',fontSize:16,fontWeight:500,color:'#fff',whiteSpace:'nowrap',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',pointerEvents:'none',zIndex:10,letterSpacing:'0.01em',boxShadow:'0 4px 24px rgba(0,0,0,0.45)'}}>
+            <a href="http://test.hokoemc.com:8060/login?redirect=/power/electricChart" target="_blank" rel="noopener noreferrer"
+              style={{position:'absolute',top:'28%',left:'50%',transform:'translateX(-50%)',background:'rgba(8,16,36,0.82)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:14,padding:'10px 28px',fontSize:16,fontWeight:500,color:'#fff',whiteSpace:'nowrap',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',zIndex:10,letterSpacing:'0.01em',boxShadow:'0 4px 24px rgba(0,0,0,0.45)',cursor:'pointer',textDecoration:'none',display:'block'}}
+              onMouseEnter={e=>e.currentTarget.style.background='rgba(30,50,90,0.92)'}
+              onMouseLeave={e=>e.currentTarget.style.background='rgba(8,16,36,0.82)'}>
               Main Hospital Building
-            </div>
+            </a>
             <div style={{position:'absolute',left:420,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10}}>
               {[1,2,3,4,5,6,7].map(f=>(
                 <button key={f} onClick={()=>setBFloor(f)} style={{background:'none',border:'none',cursor:'pointer',fontSize:11,fontWeight:bFloor===f?700:400,color:bFloor===f?'var(--green)':'var(--muted)',padding:'2px 4px',transition:'color .15s'}}>{f}F</button>
