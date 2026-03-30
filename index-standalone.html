@@ -649,14 +649,14 @@ function MapControls(){
 
 /* ══════════════════ CITY VIEW IMAGES ═══════════════════════════ */
 const VIEW_IMGS={
-  Floor:'building3d-mm.png',
+  Building:'building3d-mm.png',
   Zone:'building3d-mm.png',
 };
 
 /* ══════════════════ BUILDING VIEW ═══════════════════════════════ */
 function BuildingView({aiOpen=false}){
   const [tab,setTab]=useState('Campus');
-  const isBuilding=tab==='Building';
+  const isBuilding=tab==='Floor';
   return(
     <div style={{position:'absolute',inset:0}}>
       <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',display:'flex',gap:4,zIndex:10,background:'rgba(13,24,41,.85)',border:'1px solid var(--border)',borderRadius:8,padding:4}}>
