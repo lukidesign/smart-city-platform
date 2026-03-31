@@ -96,6 +96,16 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,createContext,useContext}=React;
 
+/* ══ 地球贴图预缓存：页面加载即开始取图，Globe3D 打开时大概率已就绪 ══ */
+let _earthTexCache=null;
+(function(){
+  const L=new THREE.TextureLoader();
+  L.load('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg',
+    t=>{_earthTexCache=t;},undefined,
+    ()=>L.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',t=>{_earthTexCache=t;})
+  );
+})();
+
 /* ══════════════════ MOCK DATA ══════════════════════════════════ */
 const FLOORS=[
   {id:7,label:'7F',consumption:180,optimized:135,hl:false},
@@ -302,18 +312,20 @@ function AISuggestionPanel(){
         <svg width="14" height="14" fill="none" stroke="var(--primary)" strokeWidth="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         <span style={{fontSize:16,fontWeight:600}}>AI Suggestion</span>
       </div>
-      <div style={{background:'rgba(13,21,36,0.88)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,padding:1}}>
+      <div style={{background:'rgba(19,36,73,0.60)',borderRadius:12,overflow:'hidden'}}>
         <div className="collapse" style={{maxHeight:applied?0:400,opacity:applied?0:1}}>
-          <div style={{padding:'16px 16px 12px'}}>
-            <div style={{background:'rgba(77,138,240,0.1)',border:'1px solid rgba(77,138,240,0.3)',borderRadius:8,padding:'10px 12px',marginBottom:12}}>
-              <p style={{fontSize:12,fontWeight:600,marginBottom:4}}>Optimize ventilation at 14F in the office sector</p>
-              <p style={{fontSize:11,color:'var(--muted)',lineHeight:1.5}}>Due last 2 weeks, office sector are unoccupied for 70% of the time during non-business hours. By implementing dynamic ventilation, there is a potential 25% reduction in energy consumption.</p>
+          <div style={{padding:'20px 16px 0'}}>
+            <p style={{fontSize:12,fontWeight:600,marginBottom:8,color:'#fff'}}>Optimize ventilation at 14F in the office sector</p>
+            <p style={{fontSize:11,color:'#94a3b8',lineHeight:1.5,marginBottom:16}}>Due last 2 weeks, office sector are unoccupied for 70% of the time during non-business hours. By implementing dynamic ventilation, there is a potential 25% reduction in energy consumption.</p>
+          </div>
+          <div style={{padding:'8px 16px',background:'#5576ef',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{color:'#fff',fontSize:12,fontWeight:500}}>+25%</span>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="rgba(255,255,255,0.3)"/><circle cx="7" cy="7" r="4" fill="white"/></svg>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <span className="badge-green">+25% <span className="dot"/></span>
-              <div style={{flex:1}}/>
-              <button className="btn" onClick={()=>setDismissed(true)} style={{background:'transparent',border:'1px solid var(--border)',padding:'5px 12px',color:'var(--muted)',fontWeight:400}}>Dismiss</button>
-              <button className="btn" onClick={()=>setApplied(true)} style={{background:'var(--primary)',padding:'5px 14px',color:'#fff'}}>Apply</button>
+              <button className="btn" onClick={()=>setDismissed(true)} style={{background:'transparent',border:'none',padding:'5px 12px',color:'#fff',fontWeight:400,fontSize:12}}>Dismiss</button>
+              <button className="btn" onClick={()=>setApplied(true)} style={{background:'#fff',padding:'5px 14px',color:'#1c2442',fontWeight:700,fontSize:12,borderRadius:100}}>Apply</button>
             </div>
           </div>
         </div>
@@ -337,8 +349,8 @@ function EnergyChart(){
       data:{
         labels:BAR.map(d=>d.t),
         datasets:[
-          {label:'After AI',data:BAR.map(d=>d.o),backgroundColor:'rgba(77,138,240,0.3)',borderRadius:2,barPercentage:.42,categoryPercentage:.85},
-          {label:'Currently',data:BAR.map(d=>d.c),backgroundColor:'#4d8af0',borderRadius:2,barPercentage:.42,categoryPercentage:.85},
+          {label:'After AI',data:BAR.map(d=>d.o),backgroundColor:'#93c5fd',borderRadius:2,barPercentage:.42,categoryPercentage:.85},
+          {label:'Currently',data:BAR.map(d=>d.c),backgroundColor:'#3b82f6',borderRadius:2,barPercentage:.42,categoryPercentage:.85},
         ],
       },
       options:{
@@ -357,9 +369,9 @@ function EnergyChart(){
       <div style={{height:40,display:'flex',alignItems:'center'}}>
         <span style={{fontSize:16,fontWeight:600}}>Energy Consumption</span>
       </div>
-      <div style={{background:'rgba(13,21,36,0.88)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,padding:'16px 16px 0'}}>
+      <div style={{background:'rgba(24,25,31,0.90)',borderRadius:10,backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',padding:'16px 16px 0'}}>
         <div style={{display:'flex',gap:14,marginBottom:12}}>
-          {[['var(--primary)','Currently'],['var(--primary-light)','After applying AI suggestions']].map(([c,l])=>(
+          {[['#3b82f6','Currently'],['#93c5fd','After applying AI suggestions']].map(([c,l])=>(
             <div key={l} style={{display:'flex',alignItems:'center',gap:5}}>
               <div style={{width:8,height:8,borderRadius:2,background:c}}/>
               <span style={{fontSize:10,color:'var(--muted)'}}>{l}</span>
@@ -374,17 +386,30 @@ function EnergyChart(){
 
 /* ══════════════════ STATS CARDS ═════════════════════════════════ */
 const fmt=v=>v>=10000?`${(v/1000).toFixed(1)}k`:v.toLocaleString();
+function GreenDot(){
+  return(
+    <div style={{width:16,height:16,position:'relative',flexShrink:0}}>
+      <div style={{width:16,height:16,borderRadius:'50%',background:'#22c55e',position:'absolute'}}/>
+      <div style={{width:8,height:8,borderRadius:'50%',background:'#18191f',position:'absolute',top:4,left:4}}/>
+    </div>
+  );
+}
 function Card({label,cur,opt,unit}){
   return(
-    <div style={{background:'var(--panel)',border:'1px solid var(--border)',borderRadius:10,padding:12}}>
-      <div style={{display:'flex',alignItems:'baseline',gap:4,marginBottom:2}}>
-        <span style={{fontSize:20,fontWeight:700}}>{fmt(cur)}</span>
-        <span style={{fontSize:11,color:'var(--muted)'}}>{unit}</span>
+    <div style={{background:'rgba(24,25,31,0.90)',borderRadius:10,backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',padding:16,display:'flex',flexDirection:'column',gap:12}}>
+      <div style={{display:'flex',flexDirection:'column',gap:4}}>
+        <div style={{display:'flex',alignItems:'baseline',gap:4}}>
+          <span style={{fontSize:20,fontWeight:500,color:'#fff'}}>{fmt(cur)}</span>
+          <span style={{fontSize:11,fontWeight:400,color:'#fff'}}>{unit}</span>
+        </div>
+        <p style={{fontSize:12,color:'rgba(255,255,255,0.45)',margin:0}}>{label}</p>
       </div>
-      <p style={{fontSize:10,color:'var(--muted)',marginBottom:6}}>{label}</p>
-      <div style={{display:'flex',alignItems:'center',gap:6}}>
-        <span style={{fontSize:13,fontWeight:600,color:'var(--primary)'}}>{fmt(opt)} {unit}</span>
-        <span className="badge-green" style={{fontSize:10}}>+25% <span className="dot"/></span>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <span style={{fontSize:13,fontWeight:500,color:'#8098f6'}}>{fmt(opt)} {unit}</span>
+        <div style={{display:'flex',alignItems:'center',gap:4}}>
+          <span style={{fontSize:13,fontWeight:500,color:'#22c55e'}}>+25%</span>
+          <GreenDot/>
+        </div>
       </div>
     </div>
   );
@@ -657,30 +682,59 @@ function Globe3D({onClose}){
     // Globe group
     const group=new THREE.Group();scene.add(group);
 
-    // Instant canvas placeholder texture — shows immediately, no black sphere
-    const pc=document.createElement('canvas');pc.width=512;pc.height=256;
+    // ── 高质量 canvas 占位：等矩形投影，海洋+极冠+大陆轮廓 ──────────────
+    const pc=document.createElement('canvas');pc.width=1024;pc.height=512;
     const px=pc.getContext('2d');
-    const pg=px.createLinearGradient(0,0,0,256);
-    pg.addColorStop(0,'#1a3a6e');pg.addColorStop(0.45,'#0e2455');pg.addColorStop(1,'#0a1830');
-    px.fillStyle=pg;px.fillRect(0,0,512,256);
-    // rough continent blobs
-    px.fillStyle='rgba(65,100,45,0.55)';
-    [[80,70,55,38],[175,65,45,30],[340,80,38,28],[400,55,30,22],[220,100,28,18],[130,110,22,14]].forEach(([cx,cy,rx,ry])=>{px.beginPath();px.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);px.fill();});
+    // 海洋：纬度渐变（赤道浅蓝绿 → 两极深蓝）
+    const og=px.createLinearGradient(0,0,0,512);
+    og.addColorStop(0,'#0a1830');og.addColorStop(0.18,'#0d2244');
+    og.addColorStop(0.5,'#163c6e');og.addColorStop(0.82,'#0d2244');og.addColorStop(1,'#0a1830');
+    px.fillStyle=og;px.fillRect(0,0,1024,512);
+    // 极冠：南北极白色渐变
+    const ng=px.createLinearGradient(0,0,0,90);ng.addColorStop(0,'rgba(240,248,255,0.95)');ng.addColorStop(1,'rgba(200,228,255,0)');
+    px.fillStyle=ng;px.fillRect(0,0,1024,90);
+    const sg=px.createLinearGradient(0,422,0,512);sg.addColorStop(0,'rgba(200,228,255,0)');sg.addColorStop(1,'rgba(240,248,255,0.92)');
+    px.fillStyle=sg;px.fillRect(0,422,1024,90);
+    // 大陆轮廓（简化等矩形多边形，按 lon→x, lat→y 映射 1024×512）
+    function ll(lon,lat){return[((lon+180)/360)*1024,((90-lat)/180)*512];}
+    function poly(pts,fill,alpha=1){
+      px.beginPath();pts.forEach(([lo,la],i)=>{const[x,y]=ll(lo,la);i?px.lineTo(x,y):px.moveTo(x,y);});
+      px.closePath();px.fillStyle=fill;px.globalAlpha=alpha;px.fill();px.globalAlpha=1;
+    }
+    // 非洲
+    poly([[-18,15],[-5,35],[10,37],[30,32],[42,12],[42,-12],[35,-35],[18,-35],[12,-18],[8,5],[-5,5],[-18,15]],'#4a6b35',0.75);
+    // 欧洲
+    poly([[-10,35],[0,43],[15,44],[25,45],[30,60],[25,70],[10,58],[0,51],[-5,43],[-10,35]],'#4a6b35',0.72);
+    // 亚洲（简化）
+    poly([[25,45],[60,42],[80,32],[100,22],[120,22],[135,35],[140,42],[130,60],[100,72],[60,68],[35,65],[25,45]],'#4a6b35',0.72);
+    // 北美洲
+    poly([[-170,68],[-140,72],[-100,72],[-80,45],[-70,44],[-75,35],[-80,25],[-88,18],[-100,20],[-120,30],[-125,50],[-140,60],[-170,68]],'#4a6b35',0.72);
+    // 南美洲
+    poly([[-80,12],[-65,12],[-48,0],[-40,-10],[-38,-20],[-42,-34],[-58,-38],[-68,-55],[-72,-42],[-78,-35],[-75,-10],[-80,12]],'#4a6b35',0.72);
+    // 澳洲
+    poly([[114,-22],[122,-20],[132,-12],[140,-18],[148,-20],[152,-28],[146,-38],[138,-38],[128,-34],[116,-30],[114,-22]],'#4a6b35',0.72);
+    // 格陵兰
+    poly([[-55,76],[-30,84],[-18,77],[-25,68],[-45,65],[-55,68],[-55,76]],'#cce8ff',0.7);
     const placeholderTex=new THREE.CanvasTexture(pc);
 
     const loader=new THREE.TextureLoader();
     const geo=new THREE.SphereGeometry(1,64,64);
-    const globeMat=new THREE.MeshPhongMaterial({map:placeholderTex,specular:new THREE.Color(0x224466),shininess:20});
+    // 若预缓存已就绪直接用；否则先用 canvas 占位，加载完无缝替换
+    const globeMat=new THREE.MeshPhongMaterial({
+      map:_earthTexCache||placeholderTex,
+      specular:new THREE.Color(0x224466),shininess:20
+    });
     const globeMesh=new THREE.Mesh(geo,globeMat);
     group.add(globeMesh);
 
-    // Load real texture from CDN — replace placeholder when ready
-    loader.load('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg',
-      tex=>{globeMesh.material.map=tex;globeMesh.material.needsUpdate=true;},
-      undefined,
-      ()=>loader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
-        tex=>{globeMesh.material.map=tex;globeMesh.material.needsUpdate=true;})
-    );
+    if(!_earthTexCache){
+      loader.load('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg',
+        tex=>{_earthTexCache=tex;globeMesh.material.map=tex;globeMesh.material.needsUpdate=true;},
+        undefined,
+        ()=>loader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
+          tex=>{_earthTexCache=tex;globeMesh.material.map=tex;globeMesh.material.needsUpdate=true;})
+      );
+    }
 
     // Atmosphere — inner glow
     group.add(new THREE.Mesh(new THREE.SphereGeometry(1.005,64,64),
@@ -745,9 +799,10 @@ function Globe3D({onClose}){
 const bs={width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(13,24,41,.9)',border:'1px solid var(--border)',borderRadius:6,color:'var(--muted)',cursor:'pointer'};
 function MapControls({onToggle3D}){
   return(<>
-    <div style={{position:'absolute',right:20,bottom:120,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
+    <div style={{position:'absolute',right:20,bottom:156,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
       <button style={bs}><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
       <button style={bs}><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+      <button style={{...bs,fontSize:11,fontWeight:500,color:'var(--muted)'}}>全屏</button>
     </div>
     <div style={{position:'absolute',right:20,bottom:20,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
       <button onClick={onToggle3D} style={{...bs,fontSize:11,fontWeight:700,color:'var(--text)'}}>3D</button>
@@ -777,9 +832,9 @@ function BuildingView({aiOpen=false,onToggle3D}){
   },[bFloor]);
   return(
     <div style={{position:'absolute',inset:0}}>
-      <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',display:'flex',gap:2,zIndex:10,background:'rgba(6,10,20,0.55)',border:'1px solid rgba(255,255,255,0.06)',borderRadius:10,padding:4,backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)'}}>
+      <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',display:'flex',gap:2,zIndex:10,background:'rgba(6,10,20,0.55)',borderRadius:100,padding:'2px',width:480}}>
         {['Campus','Building','Floor','Zone'].map(t=>{const a=t===tab;return(
-          <button key={t} onClick={()=>setTab(t)} style={{padding:'5px 16px',borderRadius:5,fontSize:12,fontWeight:a?600:400,color:a?'#0d1829':'var(--muted)',background:a?'rgba(255,255,255,0.92)':'transparent',border:'none',cursor:'pointer'}}>{t}</button>
+          <button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:'5px 16px',borderRadius:100,fontSize:16,fontWeight:a?700:400,color:a?'#fff':'rgba(255,255,255,0.85)',background:a?'#16171a':'transparent',border:'none',cursor:'pointer',transition:'all .15s'}}>{t}</button>
         );})}
       </div>
       {isBuilding?(
@@ -802,9 +857,9 @@ function BuildingView({aiOpen=false,onToggle3D}){
               onMouseLeave={e=>e.currentTarget.style.background='rgba(8,16,36,0.82)'}>
               Main Hospital Building
             </a>
-            <div style={{position:'absolute',left:420,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10}}>
+            <div style={{position:'absolute',left:420,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,width:36}}>
               {[7,6,5,4,3,2,1].map(f=>(
-                <button key={f} onClick={()=>setBFloor(f)} style={{background:'none',border:'none',cursor:'pointer',fontSize:11,fontWeight:bFloor===f?700:400,color:bFloor===f?'var(--green)':'var(--muted)',padding:'2px 4px',transition:'color .15s'}}>{f}F</button>
+                <button key={f} onClick={()=>setBFloor(f)} style={{background:bFloor===f?'#18191f':'none',border:'none',cursor:'pointer',fontSize:16,fontWeight:bFloor===f?700:400,color:bFloor===f?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'all .15s'}}>{f}F</button>
               ))}
             </div>
             {(()=>{
@@ -819,19 +874,25 @@ function BuildingView({aiOpen=false,onToggle3D}){
                   style={{position:'absolute',left:'30%',width:'50%',top,height:'14%',zIndex:11,cursor:'default'}}
                 />
                 {bHover&&(
-                  <div style={{position:'absolute',left:'42%',top:`calc(${top} - 140px)`,zIndex:20,
-                    background:'rgba(13,21,36,0.92)',border:'1px solid rgba(255,255,255,0.12)',
-                    borderRadius:14,padding:'16px 20px',minWidth:200,
+                  <div style={{position:'absolute',left:'42%',top:`calc(${top} - 160px)`,zIndex:20,
+                    background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',
+                    borderRadius:12,padding:16,minWidth:182,
                     backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',
-                    boxShadow:'0 8px 32px rgba(0,0,0,0.5)',pointerEvents:'none'}}>
-                    <div style={{fontSize:18,fontWeight:700,marginBottom:8}}>{bFloor}F</div>
-                    <div style={{fontSize:12,color:'var(--muted)',marginBottom:2}}>Current consumption</div>
-                    <div style={{fontSize:20,fontWeight:700,marginBottom:8}}>{floorData.consumption} <span style={{fontSize:12,fontWeight:400,color:'var(--muted)'}}>kWh</span></div>
-                    <div style={{fontSize:12,color:'var(--muted)',marginBottom:2}}>After optimization</div>
-                    <div style={{display:'flex',alignItems:'center',gap:8}}>
-                      <span style={{fontSize:20,fontWeight:700,color:'var(--primary)'}}>{floorData.optimized}</span>
-                      <span style={{fontSize:12,color:'var(--muted)'}}>kWh</span>
-                      <span className="badge-green" style={{fontSize:11}}>+{savings}% <span className="dot"/></span>
+                    boxShadow:'0 8px 32px rgba(0,0,0,0.5)',pointerEvents:'none',display:'flex',flexDirection:'column',gap:12}}>
+                    <div style={{fontSize:14,fontWeight:500,color:'#fff'}}>{bFloor} Floor</div>
+                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                      <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>Current consumption</div>
+                      <div><span style={{fontSize:16,fontWeight:500,color:'#fff'}}>{floorData.consumption} </span><span style={{fontSize:11,fontWeight:500,color:'#fff'}}>kWh</span></div>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                      <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>After optimization</div>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                        <div><span style={{fontSize:15,fontWeight:500,color:'#5576ef'}}>{floorData.optimized} </span><span style={{fontSize:11,fontWeight:500,color:'#5576ef'}}>kWh</span></div>
+                        <div style={{display:'flex',alignItems:'center',gap:4}}>
+                          <span style={{fontSize:15,fontWeight:500,color:'#22c55e'}}>+{savings}%</span>
+                          <GreenDot/>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
