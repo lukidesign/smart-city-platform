@@ -66,7 +66,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0a0f1a;--panel:rgba(13,21,36,0.85);--border:rgba(77,138,240,0.15);
+  --bg:#070710;--panel:rgba(13,21,36,0.85);--border:rgba(77,138,240,0.15);
   --primary:#4d8af0;--primary-light:rgba(77,138,240,0.3);--secondary:#7b6ef6;
   --green:#00e5a0;--alert:#ef4444;
   --text:#e8edf5;--muted:#8b9ab5;
@@ -321,7 +321,9 @@ function AISuggestionPanel(){
           <div style={{padding:'8px 16px',background:'#5576ef',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
               <span style={{color:'#fff',fontSize:12,fontWeight:500}}>+25%</span>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="rgba(255,255,255,0.3)"/><circle cx="7" cy="7" r="4" fill="white"/></svg>
+              <div style={{width:20,height:20,borderRadius:'50%',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 2V8M2.5 5.5L5.5 8.5L8.5 5.5" stroke="#5576ef" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              </div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <button className="btn" onClick={()=>setDismissed(true)} style={{background:'transparent',border:'none',padding:'5px 12px',color:'#fff',fontWeight:400,fontSize:12}}>Dismiss</button>
@@ -388,9 +390,10 @@ function EnergyChart(){
 const fmt=v=>v>=10000?`${(v/1000).toFixed(1)}k`:v.toLocaleString();
 function GreenDot(){
   return(
-    <div style={{width:16,height:16,position:'relative',flexShrink:0}}>
-      <div style={{width:16,height:16,borderRadius:'50%',background:'#22c55e',position:'absolute'}}/>
-      <div style={{width:8,height:8,borderRadius:'50%',background:'#18191f',position:'absolute',top:4,left:4}}/>
+    <div style={{width:16,height:16,borderRadius:'50%',background:'#22c55e',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+      <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+        <path d="M4.5 1.5V6M2 4.5L4.5 7L7 4.5" stroke="#18191F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
     </div>
   );
 }
@@ -798,7 +801,7 @@ function Globe3D({onClose}){
 }
 
 /* ══════════════════ MAP CONTROLS ════════════════════════════════ */
-const bs={width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(13,24,41,.9)',border:'1px solid var(--border)',borderRadius:6,color:'var(--muted)',cursor:'pointer'};
+const bs={width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(24,25,31,0.90)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,color:'var(--muted)',cursor:'pointer'};
 function MapControls({onToggle3D}){
   return(<>
     <div style={{position:'absolute',right:20,bottom:156,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
@@ -853,34 +856,42 @@ function BuildingView({aiOpen=false,onToggle3D}){
           )}
           <div style={{position:'absolute',inset:0,background:'rgba(7,13,26,.15)'}}/>
           {tab==='Building'&&(<>
+            {/* ── Main Hospital Building pill + vertical connector ── */}
             <a href="http://test.hokoemc.com:8060/login?redirect=/power/electricChart" target="_blank" rel="noopener noreferrer"
-              style={{position:'absolute',top:'28%',left:'50%',transform:'translateX(-50%)',background:'rgba(8,16,36,0.82)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:14,padding:'10px 28px',fontSize:16,fontWeight:500,color:'#fff',whiteSpace:'nowrap',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',zIndex:10,letterSpacing:'0.01em',boxShadow:'0 4px 24px rgba(0,0,0,0.45)',cursor:'pointer',textDecoration:'none',display:'block'}}
-              onMouseEnter={e=>e.currentTarget.style.background='rgba(30,50,90,0.92)'}
-              onMouseLeave={e=>e.currentTarget.style.background='rgba(8,16,36,0.82)'}>
+              style={{position:'absolute',top:'22.13%',left:'53.28%',background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',borderRadius:100,padding:'11px 29px',width:227,height:41,fontSize:16,fontWeight:500,color:'#fff',whiteSpace:'nowrap',zIndex:10,letterSpacing:'0.01em',cursor:'pointer',textDecoration:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
               Main Hospital Building
             </a>
+            {/* vertical line below label */}
+            <div style={{position:'absolute',left:'calc(53.28% + 113px)',top:'calc(22.13% + 41px)',width:1,height:54,background:'rgba(255,255,255,0.45)',zIndex:9}}/>
+            {/* dot at bottom of line */}
+            <div style={{position:'absolute',left:'calc(53.28% + 108px)',top:'calc(22.13% + 93px)',width:10,height:10,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.65)',background:'rgba(24,25,31,0.5)',zIndex:9}}/>
+
+            {/* ── Floor selector ── */}
             <div style={{position:'absolute',left:420,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,width:36}}>
               {[7,6,5,4,3,2,1].map(f=>(
                 <button key={f} onClick={()=>setBFloor(f)} style={{background:bFloor===f?'#18191f':'none',border:'none',cursor:'pointer',fontSize:16,fontWeight:bFloor===f?700:400,color:bFloor===f?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'all .15s'}}>{f}F</button>
               ))}
             </div>
+
             {(()=>{
               const floorData=FLOORS.find(f=>f.id===bFloor)||FLOORS[FLOORS.length-1];
-              // Green band top position: 1F=76%, 2F=68%, 3F=60%, 4F=52%, 5F=44%, 6F=36%, 7F=28%
               const top=`${76-(bFloor-1)*8}%`;
               const savings=Math.round((1-floorData.optimized/floorData.consumption)*100);
+              // Tooltip fixed position (Figma: left 29.06%, top 27.41%)
+              const tipLeft='29.06%'; const tipTop='27.41%';
               return(<>
+                {/* hover zone on floor band */}
                 <div
                   onMouseEnter={()=>setBHover(true)}
                   onMouseLeave={()=>setBHover(false)}
                   style={{position:'absolute',left:'30%',width:'50%',top,height:'14%',zIndex:11,cursor:'default'}}
                 />
-                {bHover&&(
-                  <div style={{position:'absolute',left:'42%',top:`calc(${top} - 160px)`,zIndex:20,
+                {bHover&&(<>
+                  {/* ── Tooltip card ── */}
+                  <div style={{position:'absolute',left:tipLeft,top:tipTop,zIndex:20,
                     background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',
-                    borderRadius:12,padding:16,minWidth:182,
-                    backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',
-                    boxShadow:'0 8px 32px rgba(0,0,0,0.5)',pointerEvents:'none',display:'flex',flexDirection:'column',gap:12}}>
+                    borderRadius:12,padding:17,width:184,
+                    pointerEvents:'none',display:'flex',flexDirection:'column',gap:12}}>
                     <div style={{fontSize:14,fontWeight:500,color:'#fff'}}>{bFloor} Floor</div>
                     <div style={{display:'flex',flexDirection:'column',gap:4}}>
                       <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>Current consumption</div>
@@ -897,7 +908,25 @@ function BuildingView({aiOpen=false,onToggle3D}){
                       </div>
                     </div>
                   </div>
-                )}
+                  {/* ── Diagonal connector: tooltip bottom → floor band (using viewBox percentages) ── */}
+                  {(()=>{
+                    // Tooltip bottom-center in % of viewport: left 29.06%+92px≈34%, top 27.41%+148px≈41.1%
+                    // Floor band target: ~55% x, floor top + 7%
+                    const bandTopPct = 76-(bFloor-1)*8;
+                    const x1=34, y1=41;
+                    const x2=55, y2=bandTopPct+7;
+                    return(
+                      <svg style={{position:'absolute',left:0,top:0,width:'100%',height:'100%',zIndex:19,pointerEvents:'none'}} viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`}
+                              stroke="rgba(255,255,255,0.45)" strokeWidth="0.1" strokeDasharray="0.4 0.3"/>
+                        <circle cx={`${x1}%`} cy={`${y1}%`} r="0.5"
+                                fill="rgba(24,25,31,0.5)" stroke="rgba(255,255,255,0.65)" strokeWidth="0.15"/>
+                        <circle cx={`${x2}%`} cy={`${y2}%`} r="0.5"
+                                fill="rgba(24,25,31,0.5)" stroke="rgba(255,255,255,0.65)" strokeWidth="0.15"/>
+                      </svg>
+                    );
+                  })()}
+                </>)}
               </>);
             })()}
           </>)}
