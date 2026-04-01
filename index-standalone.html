@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
 <title>Smart City Platform</title>
 
 <!-- 1. UI libraries — three@0.160 (last version with UMD global), OrbitControls inline below -->
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
 /* Minimal OrbitControls — no CDN dependency */
@@ -73,14 +75,19 @@
 }
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden;height:100vh;-webkit-font-smoothing:antialiased}
 #root{height:100vh;display:flex;flex-direction:column;overflow:hidden}
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:transparent;border-radius:2px;transition:background .3s}
+*:hover::-webkit-scrollbar-thumb{background:var(--border)}
+*::-webkit-scrollbar-thumb:hover{background:rgba(77,138,240,0.5)}
 
 @keyframes slideIn{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
 @keyframes slideInR{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
-.pa1{animation:slideIn .4s .05s both}
-.pa2{animation:slideIn .4s .15s both}
-.pa3{animation:slideIn .4s .25s both}
-.pa4{animation:slideIn .4s .35s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.pa1{animation:fadeUp .6s cubic-bezier(0.4,0,0.2,1) .1s both}
+.pa2{animation:fadeUp .6s cubic-bezier(0.4,0,0.2,1) 2.1s both}
+.pa3{animation:fadeUp .6s cubic-bezier(0.4,0,0.2,1) 2.0s both}
+.pa4{animation:fadeUp .6s cubic-bezier(0.4,0,0.2,1) 2.05s both}
+@keyframes fadeSlideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
+.floor-in{animation:fadeSlideIn .45s cubic-bezier(0.4,0,0.2,1) both}
 
 .badge-green{display:inline-flex;align-items:center;gap:4px;background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.28);border-radius:20px;padding:2px 7px;font-size:11px;font-weight:700;color:var(--green)}
 .dot{width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block}
@@ -116,15 +123,26 @@ const FLOORS=[
   {id:2,label:'2F',consumption:172,optimized:129,hl:true },
   {id:1,label:'1F',consumption:152,optimized:116,hl:false},
 ];
+const ZONES=[
+  {id:'A',label:'Zone A',name:'Office (North Wing)',   floor:1,consumption:290,optimized:218},
+  {id:'B',label:'Zone B',name:'Medical (East Wing)',   floor:2,consumption:340,optimized:255},
+  {id:'C',label:'Zone C',name:'Emergency (South)',     floor:3,consumption:195,optimized:147},
+  {id:'E',label:'Zone E',name:'Admin (West Wing)',     floor:4,consumption:220,optimized:165},
+  {id:'F',label:'Zone F',name:'Research (Central)',   floor:5,consumption:260,optimized:195},
+  {id:'G',label:'Zone G',name:'Lab (East)',            floor:6,consumption:310,optimized:233},
+];
 const BAR=[
   {t:'06:00',c:144,o:220},{t:'',c:220,o:284},{t:'12:00',c:190,o:346},{t:'',c:151,o:262},
   {t:'18:00',c:168,o:272},{t:'',c:199,o:291},{t:'',c:96,o:168},{t:'Now',c:80,o:120},
 ];
 const SAVINGS=[
-  {d:'1 Dec',cost:1200,en:800,co2:40},{d:'5 Dec',cost:2400,en:1500,co2:70},
-  {d:'10 Dec',cost:2600,en:1700,co2:75},{d:'15 Dec',cost:5200,en:2800,co2:110},
-  {d:'20 Dec',cost:4800,en:2600,co2:115},{d:'25 Dec',cost:5500,en:3000,co2:125},
-  {d:'30 Dec',cost:4300,en:2400,co2:135},
+  {d:'1 Dec', cost:1400, en:900},
+  {d:'5 Dec', cost:2900, en:1500},
+  {d:'10 Dec',cost:6200, en:2400},
+  {d:'15 Dec',cost:9400, en:2900},
+  {d:'20 Dec',cost:5600, en:2300},
+  {d:'25 Dec',cost:6800, en:3100},
+  {d:'30 Dec',cost:5200, en:2100},
 ];
 
 /* ══════════════════ ENERGY CONTEXT ═════════════════════════════ */
@@ -301,13 +319,149 @@ function Sidebar(){
   );
 }
 
+/* ══════════════════ AI DETAIL MODAL ════════════════════════════ */
+function AIDetailModal({onClose}){
+  const bars=[
+    {label:'Mon',before:82,after:61},{label:'Tue',before:78,after:58},
+    {label:'Wed',before:91,after:67},{label:'Thu',before:85,after:63},
+    {label:'Fri',before:88,after:65},{label:'Sat',before:42,after:18},{label:'Sun',before:38,after:15},
+  ];
+  const steps=[
+    {n:1,t:'Sensor analysis complete',d:'14F occupancy sensors reviewed — 70% vacant during 20:00–08:00',done:true},
+    {n:2,t:'Dynamic schedule generated',d:'AI proposes reducing HVAC to 30% capacity during low-occupancy windows',done:true},
+    {n:3,t:'Conflict check passed',d:'No scheduled events or overtime bookings in next 14 days',done:true},
+    {n:4,t:'Awaiting approval',d:'Apply to activate the optimized ventilation schedule immediately',done:false},
+  ];
+  return(
+    <div onClick={onClose} style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(7,7,16,0.72)',backdropFilter:'blur(6px)',WebkitBackdropFilter:'blur(6px)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:620,maxHeight:'88vh',overflowY:'auto',background:'rgba(13,18,32,0.97)',border:'1px solid rgba(77,138,240,0.18)',borderRadius:20,boxShadow:'0 24px 80px rgba(0,0,0,0.6)',display:'flex',flexDirection:'column'}}>
+
+        {/* ── Header ── */}
+        <div style={{padding:'24px 28px 20px',borderBottom:'1px solid rgba(255,255,255,0.07)',display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:16}}>
+          <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+            <div style={{width:36,height:36,borderRadius:10,background:'rgba(85,118,239,0.18)',border:'1px solid rgba(85,118,239,0.35)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:2}}>
+              <svg width="16" height="16" fill="none" stroke="#5576ef" strokeWidth="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            </div>
+            <div>
+              <div style={{fontSize:15,fontWeight:700,color:'#fff',marginBottom:4}}>Optimize ventilation at 14F in the office sector</div>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                {[['14F','Floor'],['Office','Zone'],['HVAC','System'],['High Priority','']].map(([v,u])=>(
+                  <span key={v} style={{fontSize:10,color:'#8b9ab5',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.09)',borderRadius:100,padding:'2px 8px'}}>{v}{u&&<span style={{color:'#5b6a8a'}}> · {u}</span>}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:'rgba(255,255,255,0.06)',border:'none',borderRadius:8,width:28,height:28,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0}}>
+            <svg width="12" height="12" fill="none" stroke="#8b9ab5" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div style={{padding:'20px 28px',display:'flex',flexDirection:'column',gap:20}}>
+
+          {/* ── Key metrics ── */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+            {[
+              {v:'70%',l:'Vacancy rate',sub:'Non-business hours',c:'#ef4444'},
+              {v:'−25%',l:'Energy savings',sub:'Projected reduction',c:'#22c55e'},
+              {v:'$1,840',l:'Monthly savings',sub:'Cost projection',c:'#5576ef'},
+            ].map(m=>(
+              <div key={m.l} style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:12,padding:'14px 16px'}}>
+                <div style={{fontSize:22,fontWeight:700,color:m.c,marginBottom:2}}>{m.v}</div>
+                <div style={{fontSize:11,fontWeight:600,color:'#e8edf5',marginBottom:2}}>{m.l}</div>
+                <div style={{fontSize:10,color:'#5b6a8a'}}>{m.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Occupancy analysis ── */}
+          <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:12,padding:'16px'}}>
+            <div style={{fontSize:12,fontWeight:600,color:'#e8edf5',marginBottom:4}}>Weekly Occupancy & Energy Usage — 14F</div>
+            <div style={{fontSize:10,color:'#5b6a8a',marginBottom:14}}>Past 2 weeks average · kWh per day</div>
+            <div style={{display:'flex',alignItems:'flex-end',gap:6,height:90}}>
+              {bars.map(b=>(
+                <div key={b.label} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
+                  <div style={{width:'100%',display:'flex',gap:2,alignItems:'flex-end',height:72}}>
+                    <div style={{flex:1,background:'rgba(148,163,200,0.45)',borderRadius:'3px 3px 0 0',height:`${b.before}%`}}/>
+                    <div style={{flex:1,background:'#5576ef',borderRadius:'3px 3px 0 0',height:`${b.after}%`}}/>
+                  </div>
+                  <div style={{fontSize:9,color:'#5b6a8a'}}>{b.label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{display:'flex',gap:12,marginTop:10}}>
+              {[['rgba(148,163,200,0.6)','Current'],['#5576ef','After AI']].map(([c,l])=>(
+                <div key={l} style={{display:'flex',alignItems:'center',gap:5}}>
+                  <div style={{width:8,height:8,borderRadius:2,background:c}}/>
+                  <span style={{fontSize:10,color:'#5b6a8a'}}>{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Time window heatmap ── */}
+          <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:12,padding:'16px'}}>
+            <div style={{fontSize:12,fontWeight:600,color:'#e8edf5',marginBottom:4}}>Optimization Time Window</div>
+            <div style={{fontSize:10,color:'#5b6a8a',marginBottom:14}}>HVAC load reduction schedule (daily)</div>
+            <div style={{position:'relative',height:32,borderRadius:6,overflow:'hidden',background:'rgba(255,255,255,0.04)'}}>
+              {/* 24-hour bar */}
+              {[{s:0,e:8,label:'Low — 30%',c:'rgba(85,118,239,0.55)'},{s:8,e:20,label:'Normal — 100%',c:'rgba(34,197,94,0.25)'},{s:20,e:24,label:'Low — 30%',c:'rgba(85,118,239,0.55)'}].map((seg,i)=>(
+                <div key={i} style={{position:'absolute',left:`${(seg.s/24)*100}%`,width:`${((seg.e-seg.s)/24)*100}%`,top:0,bottom:0,background:seg.c,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <span style={{fontSize:9,color:'rgba(255,255,255,0.7)',fontWeight:500,whiteSpace:'nowrap'}}>{seg.label}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
+              {['00:00','06:00','12:00','18:00','24:00'].map(t=>(
+                <span key={t} style={{fontSize:9,color:'#5b6a8a'}}>{t}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Implementation steps ── */}
+          <div>
+            <div style={{fontSize:12,fontWeight:600,color:'#e8edf5',marginBottom:14}}>Implementation Checklist</div>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {steps.map(s=>(
+                <div key={s.n} style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+                  <div style={{width:22,height:22,borderRadius:'50%',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:s.done?'rgba(34,197,94,0.15)':'rgba(255,255,255,0.06)',border:`1.5px solid ${s.done?'#22c55e':'rgba(255,255,255,0.12)'}`}}>
+                    {s.done
+                      ? <svg width="10" height="10" fill="none" stroke="#22c55e" strokeWidth="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                      : <span style={{fontSize:9,color:'#5b6a8a',fontWeight:600}}>{s.n}</span>}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,fontWeight:500,color:s.done?'#e8edf5':'#8b9ab5',marginBottom:2}}>{s.t}</div>
+                    <div style={{fontSize:10,color:'#5b6a8a',lineHeight:1.5}}>{s.d}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Footer actions ── */}
+          <div style={{display:'flex',gap:10,paddingTop:4}}>
+            <button onClick={onClose} style={{flex:1,padding:'10px',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,color:'#8b9ab5',fontSize:12,fontWeight:500,cursor:'pointer'}}>Close</button>
+            <button onClick={onClose} style={{flex:2,padding:'10px',background:'linear-gradient(135deg,#5576ef,#7b6ef6)',border:'none',borderRadius:10,color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer',boxShadow:'0 4px 16px rgba(85,118,239,0.35)'}}>
+              Apply Optimization Now
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════ AI SUGGESTION ══════════════════════════════ */
+const AI_DESC='Due last 2 weeks, office sector are unoccupied for 70% of the time during non-business hours. By implementing dynamic ventilation, there is a potential 25% reduction in energy consumption.';
 function AISuggestionPanel(){
   const [applied,setApplied]=useState(false);
   const [dismissed,setDismissed]=useState(false);
+  const [showModal,setShowModal]=useState(false);
+  const typedDesc=useTypewriter(AI_DESC,14,1000); // hook must be before early return
   if(dismissed) return null;
   return(
     <div className="pa1">
+      {showModal&&ReactDOM.createPortal(<AIDetailModal onClose={()=>setShowModal(false)}/>,document.body)}
       <div style={{height:40,display:'flex',alignItems:'center',gap:8}}>
         <svg width="14" height="14" fill="none" stroke="var(--primary)" strokeWidth="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         <span style={{fontSize:16,fontWeight:600}}>AI Suggestion</span>
@@ -316,7 +470,7 @@ function AISuggestionPanel(){
         <div className="collapse" style={{maxHeight:applied?0:400,opacity:applied?0:1}}>
           <div style={{padding:'20px 16px 0'}}>
             <p style={{fontSize:12,fontWeight:600,marginBottom:8,color:'#fff'}}>Optimize ventilation at 14F in the office sector</p>
-            <p style={{fontSize:11,color:'#94a3b8',lineHeight:1.5,marginBottom:16}}>Due last 2 weeks, office sector are unoccupied for 70% of the time during non-business hours. By implementing dynamic ventilation, there is a potential 25% reduction in energy consumption.</p>
+            <p style={{fontSize:11,color:'#94a3b8',lineHeight:1.5,marginBottom:16}}>{typedDesc}<span style={{display:'inline-block',width:1,height:'0.9em',background:'#94a3b8',verticalAlign:'middle',marginLeft:1,opacity:typedDesc.length<AI_DESC.length?1:0,transition:'opacity .15s'}}></span></p>
           </div>
           <div style={{padding:'8px 16px',background:'#5576ef',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
@@ -333,7 +487,7 @@ function AISuggestionPanel(){
         </div>
         {applied&&<div style={{padding:'10px 16px',fontSize:12,color:'var(--green)',display:'flex',alignItems:'center',gap:6}}><span className="dot"/>Optimization applied successfully</div>}
       </div>
-      <div style={{padding:'8px 14px',borderTop:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',gap:4,cursor:'pointer'}}>
+      <div onClick={()=>setShowModal(true)} style={{padding:'8px 14px',borderTop:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',gap:4,cursor:'pointer'}}>
         <span style={{fontSize:11,color:'var(--muted)'}}>Show more</span>
         <svg width="12" height="12" fill="none" stroke="var(--muted)" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
@@ -345,26 +499,50 @@ function AISuggestionPanel(){
 function EnergyChart(){
   const ref=useRef(null);
   useEffect(()=>{
+    let ch,timer;
+    timer=setTimeout(()=>{
     if(!ref.current) return;
-    const ch=new Chart(ref.current.getContext('2d'),{
+    ch=new Chart(ref.current.getContext('2d'),{
       type:'bar',
+      plugins:[ChartDataLabels],
       data:{
         labels:BAR.map(d=>d.t),
         datasets:[
-          {label:'After AI',data:BAR.map(d=>d.o),backgroundColor:'#93c5fd',borderRadius:2,barPercentage:.42,categoryPercentage:.85},
-          {label:'Currently',data:BAR.map(d=>d.c),backgroundColor:'#3b82f6',borderRadius:2,barPercentage:.42,categoryPercentage:.85},
+          {label:'Currently',       data:BAR.map(d=>d.o),backgroundColor:'rgba(148,163,200,0.55)',borderRadius:3,barPercentage:.62,categoryPercentage:.82},
+          {label:'After applying AI suggestions',data:BAR.map(d=>d.c),backgroundColor:'#5576ef',borderRadius:3,barPercentage:.38,categoryPercentage:.82},
         ],
       },
       options:{
         responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d1829',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#fff',bodyColor:'#94a3b8',callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw} kWh`}}},
+        plugins:{
+          legend:{
+            display:false,
+          },
+          tooltip:{backgroundColor:'#0d1829',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#fff',bodyColor:'#94a3b8',callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw} kWh`}},
+          datalabels:{
+            anchor:'end',align:'top',
+            formatter:v=>v,
+            font:{size:9,weight:'500'},
+            color:(ctx)=>ctx.datasetIndex===0?'rgba(180,195,230,0.9)':'rgba(120,150,255,0.95)',
+            padding:{bottom:0},
+            offset:-2,
+          },
+        },
         scales:{
           x:{grid:{display:false},ticks:{color:'#94a3b8',font:{size:10}},border:{display:false}},
-          y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#94a3b8',font:{size:10}},border:{display:false}},
+          y:{
+            max:400,
+            grid:{color:'rgba(255,255,255,.07)',borderDash:[3,3]},
+            ticks:{color:'#94a3b8',font:{size:10},stepSize:100},
+            border:{display:false},
+          },
         },
+        animation:{duration:700,easing:'easeOutCubic',
+          delay:ctx=>ctx.type==='data'?ctx.dataIndex*500:0},
       },
     });
-    return ()=>ch.destroy();
+    },2100);
+    return()=>{clearTimeout(timer);ch?.destroy();};
   },[]);
   return(
     <div className="pa2">
@@ -373,7 +551,7 @@ function EnergyChart(){
       </div>
       <div style={{background:'rgba(24,25,31,0.90)',borderRadius:10,backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',padding:16}}>
         <div style={{display:'flex',gap:14,marginBottom:12}}>
-          {[['#3b82f6','Currently'],['#93c5fd','After applying AI suggestions']].map(([c,l])=>(
+          {[['rgba(148,163,200,0.75)','Currently'],['#5576ef','After applying AI suggestions']].map(([c,l])=>(
             <div key={l} style={{display:'flex',alignItems:'center',gap:5}}>
               <div style={{width:8,height:8,borderRadius:2,background:c}}/>
               <span style={{fontSize:10,color:'var(--muted)'}}>{l}</span>
@@ -397,12 +575,14 @@ function GreenDot(){
     </div>
   );
 }
-function Card({label,cur,opt,unit}){
+function Card({label,cur,opt,unit,delay=0}){
+  const[count,done]=useCountUp(cur,3150,delay);
+  const display=done?cur:count;
   return(
     <div style={{background:'rgba(24,25,31,0.90)',borderRadius:10,backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',padding:16,display:'flex',flexDirection:'column',gap:12,height:111}}>
       <div style={{display:'flex',flexDirection:'column',gap:4}}>
         <div style={{display:'flex',alignItems:'baseline',gap:4}}>
-          <span style={{fontSize:20,fontWeight:500,color:'#fff'}}>{fmt(cur)}</span>
+          <span style={{fontSize:20,fontWeight:500,color:'#fff'}}>{fmt(display)}</span>
           <span style={{fontSize:11,fontWeight:400,color:'#fff'}}>{unit}</span>
         </div>
         <p style={{fontSize:12,color:'rgba(255,255,255,0.45)',margin:0}}>{label}</p>
@@ -422,42 +602,154 @@ function StatsCards(){
   const daily=floors.find(f=>f.id===14)?.live||332;
   return(
     <div className="pa3" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-      <Card label="Daily consumption" cur={daily} opt={204} unit="kWh"/>
-      <Card label="Weekly consumption" cur={1437} opt={1204} unit="kWh"/>
-      <Card label="Monthly consumption" cur={10400} opt={8100} unit="kWh"/>
-      <Card label="Yearly consumption" cur={154300} opt={125200} unit="kWh"/>
+      <Card label="Daily consumption" cur={daily} opt={204} unit="kWh" delay={2000}/>
+      <Card label="Weekly consumption" cur={1437} opt={1204} unit="kWh" delay={2050}/>
+      <Card label="Monthly consumption" cur={10400} opt={8100} unit="kWh" delay={2100}/>
+      <Card label="Yearly consumption" cur={154300} opt={125200} unit="kWh" delay={2150}/>
     </div>
   );
 }
 
+/* ══════════════════ ANIMATION HOOKS ════════════════════════════ */
+// 打字机 hook
+function useTypewriter(text,speed=16,startDelay=750){
+  const [disp,setDisp]=useState('');
+  useEffect(()=>{
+    setDisp('');let i=0;
+    const t=setTimeout(()=>{
+      const iv=setInterval(()=>{
+        i++;setDisp(text.slice(0,i));
+        if(i>=text.length)clearInterval(iv);
+      },speed);
+      return()=>clearInterval(iv);
+    },startDelay);
+    return()=>clearTimeout(t);
+  },[]);
+  return disp;
+}
+// 数值递增 hook（只在 mount 执行一次）
+function useCountUp(target,duration=1100,delay=0){
+  const [val,setVal]=useState(0);
+  const [done,setDone]=useState(false);
+  useEffect(()=>{
+    let raf;
+    const captured=target;
+    const t=setTimeout(()=>{
+      const s=performance.now();
+      function step(now){
+        const p=Math.min((now-s)/duration,1);
+        const e=p<0.5?2*p*p:-1+(4-2*p)*p;
+        setVal(Math.round(e*captured));
+        if(p<1)raf=requestAnimationFrame(step);
+        else setDone(true);
+      }
+      raf=requestAnimationFrame(step);
+    },delay);
+    return()=>{clearTimeout(t);if(raf)cancelAnimationFrame(raf);};
+  },[]);
+  return[val,done];
+}
+
 /* ══════════════════ SAVINGS CHART ═══════════════════════════════ */
+// 折线从左向右逐步绘制插件
+const lineDrawPlugin={
+  id:'lineClip',
+  beforeDatasetsDraw(chart){
+    const p=chart._lineProgress!==undefined?chart._lineProgress:1;
+    if(p>=1)return;
+    const{ctx,chartArea:{left,right,top,bottom}}=chart;
+    ctx.save();ctx.beginPath();
+    ctx.rect(left,top-5,(right-left)*p,bottom-top+10);
+    ctx.clip();
+  },
+  afterDatasetsDraw(chart){
+    if(chart._lineProgress!==undefined&&chart._lineProgress<1)chart.ctx.restore();
+  }
+};
+const crosshairPlugin={
+  id:'crosshair',
+  afterDraw(chart){
+    if(chart.tooltip._active&&chart.tooltip._active.length){
+      const ctx=chart.ctx,x=chart.tooltip._active[0].element.x;
+      const {top,bottom}=chart.chartArea;
+      ctx.save();ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);
+      ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.stroke();ctx.restore();
+    }
+  }
+};
 function SavingsChart(){
   const ref=useRef(null);
   useEffect(()=>{
     if(!ref.current) return;
     const ch=new Chart(ref.current.getContext('2d'),{
       type:'line',
+      plugins:[lineDrawPlugin,crosshairPlugin],
       data:{
         labels:SAVINGS.map(d=>d.d),
         datasets:[
-          {label:'Cost',data:SAVINGS.map(d=>d.cost),borderColor:'#4d8af0',borderWidth:1.5,pointRadius:0,tension:.4,fill:false},
-          {label:'Energy',data:SAVINGS.map(d=>d.en),borderColor:'#7b6ef6',borderWidth:1.5,pointRadius:0,tension:.4,fill:false},
-          {label:'CO₂',data:SAVINGS.map(d=>d.co2*20),borderColor:'#00e5a0',borderWidth:1.5,pointRadius:0,tension:.4,fill:false},
+          {label:'Cost savings',data:SAVINGS.map(d=>d.cost),
+           borderColor:'rgba(155,170,215,0.85)',borderWidth:2.5,
+           pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'rgba(155,170,215,1)',
+           pointHoverBorderColor:'#fff',pointHoverBorderWidth:1.5,
+           tension:.4,fill:false},
+          {label:'Energy savings',data:SAVINGS.map(d=>d.en),
+           borderColor:'#6272e0',borderWidth:1.5,
+           pointRadius:0,pointHoverRadius:5,pointHoverBackgroundColor:'#6272e0',
+           pointHoverBorderColor:'#fff',pointHoverBorderWidth:1.5,
+           tension:.4,fill:false},
         ],
       },
       options:{
         responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d1829',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#fff',bodyColor:'#94a3b8'}},
+        interaction:{mode:'index',intersect:false},
+        plugins:{
+          legend:{display:false},
+          tooltip:{
+            backgroundColor:'#0d1829',borderColor:'rgba(255,255,255,.12)',borderWidth:1,
+            titleColor:'#fff',bodyColor:'#94a3b8',
+            callbacks:{
+              label:ctx=>`${ctx.dataset.label}: ${(ctx.raw/1000).toFixed(1)}k`,
+              labelColor:ctx=>{
+                const c=ctx.datasetIndex===0?'rgba(155,170,215,0.85)':'#6272e0';
+                return{borderColor:c,backgroundColor:c,borderRadius:2};
+              },
+            },
+          },
+        },
         scales:{
-          x:{grid:{display:false},ticks:{color:'#94a3b8',font:{size:10}},border:{display:false}},
-          y:{display:false},
+          x:{
+            grid:{color:'rgba(255,255,255,.06)',borderDash:[3,3]},
+            ticks:{color:'#94a3b8',font:{size:10}},
+            border:{display:false},
+          },
+          y:{
+            min:0,max:10000,
+            grid:{color:'rgba(255,255,255,.06)',borderDash:[3,3]},
+            ticks:{color:'#94a3b8',font:{size:10},callback:v=>v>=1000?(v/1000)+'k':v},
+            border:{display:false},
+            afterBuildTicks:scale=>{scale.ticks=[0,2000,4000,10000].map(v=>({value:v}));},
+          },
         },
       },
     });
-    return ()=>ch.destroy();
+    // 折线从左向右绘制动画，与 pa4 同步（2.0s delay）
+    ch._lineProgress=0;
+    let raf;
+    const drawTimer=setTimeout(()=>{
+      const s=performance.now(),dur=2950;
+      function step(now){
+        const p=Math.min((now-s)/dur,1);
+        ch._lineProgress=p<0.5?2*p*p:-1+(4-2*p)*p;
+        ch.draw();
+        if(p<1)raf=requestAnimationFrame(step);
+        else delete ch._lineProgress;
+      }
+      raf=requestAnimationFrame(step);
+    },2050);
+    return()=>{clearTimeout(drawTimer);cancelAnimationFrame(raf);ch.destroy();};
   },[]);
   return(
-    <div className="pa4" style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+    <div className="pa4" style={{flex:1,display:'flex',flexDirection:'column',minHeight:220}}>
       <div style={{height:40,display:'flex',alignItems:'center'}}>
         <span style={{fontSize:16,fontWeight:600}}>Monthly Savings</span>
       </div>
@@ -651,10 +943,10 @@ function Building3D({aiOpen=false}){
 }
 
 /* ══════════════════ FLOOR SELECTOR ══════════════════════════════ */
-function FloorSelector(){
+function FloorSelector({panelVisible=true}){
   const {active,setActive}=useE();
   return(
-    <div style={{position:'absolute',left:420,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10}}>
+    <div style={{position:'absolute',left:panelVisible?420:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,transition:'left 0.4s cubic-bezier(0.4,0,0.2,1)'}}>
       {[...FLOORS].reverse().map(f=>(
         <button key={f.id} onClick={()=>setActive(f.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:11,fontWeight:active===f.id?700:400,color:active===f.id?'var(--green)':'var(--muted)',padding:'2px 4px',transition:'color .15s'}}>{f.label}</button>
       ))}
@@ -802,16 +1094,43 @@ function Globe3D({onClose}){
 
 /* ══════════════════ MAP CONTROLS ════════════════════════════════ */
 const bs={width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(24,25,31,0.90)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,color:'var(--muted)',cursor:'pointer'};
-function MapControls({onToggle3D}){
+function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab}){
+  const [spinning,setSpinning]=useState(false);
+  function handleRefresh(){
+    if(spinning)return;
+    setSpinning(true);
+    onRefresh&&onRefresh();
+    setTimeout(()=>setSpinning(false),600);
+  }
   return(<>
     <div style={{position:'absolute',right:20,bottom:156,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
+      {/* Refresh button */}
+      <button title={`Refresh ${tab||''}`} onClick={handleRefresh}
+        style={{...bs,transition:'background .15s',position:'relative'}}
+        onMouseEnter={e=>e.currentTarget.style.background='rgba(40,42,55,0.95)'}
+        onMouseLeave={e=>e.currentTarget.style.background='rgba(24,25,31,0.90)'}>
+        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+          style={{transition:'transform .6s ease',transform:spinning?'rotate(360deg)':'rotate(0deg)'}}>
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+      </button>
       <button style={bs}><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
       <button style={bs}><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-      <button style={{...bs,fontSize:11,fontWeight:500,color:'var(--muted)'}}>全屏</button>
+      <button onClick={()=>{
+        const el=document.documentElement;
+        if(!document.fullscreenElement){
+          (el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen).call(el);
+        } else {
+          (document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen).call(document);
+        }
+      }} style={{...bs,fontSize:11,fontWeight:500,color:'var(--muted)'}}>全屏</button>
     </div>
     <div style={{position:'absolute',right:20,bottom:20,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
       <button onClick={onToggle3D} style={{...bs,fontSize:11,fontWeight:700,color:'var(--text)'}}>3D</button>
-      <button style={bs}><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></button>
+      <button onClick={onTogglePanel} style={{...bs,opacity:panelVisible?1:0.5}}>
+        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      </button>
     </div>
   </>);
 }
@@ -823,18 +1142,31 @@ const VIEW_IMGS={
 };
 
 /* ══════════════════ BUILDING VIEW ═══════════════════════════════ */
-function BuildingView({aiOpen=false,onToggle3D}){
+function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefresh}){
   const [tab,setTab]=useState('Building');
-  const [bFloor,setBFloor]=useState(1);
-  const [bImg,setBImg]=useState('building3d-mm.png');
+  const [bFloor,setBFloor]=useState(0);
+  const [bImg,setBImg]=useState('zbuilding3dimg/zbuilding3d-mr.png');
   const [bHover,setBHover]=useState(false);
+  const [zZone,setZZone]=useState('A');
+  const [zHover,setZHover]=useState(false);
+  const [zBFloor,setZBFloor]=useState(0);
+  const [zBImg,setZBImg]=useState('build3dimg/build3dimg-mr.png');
+  const [zBHover,setZBHover]=useState(false);
   const isBuilding=tab==='Floor';
   useEffect(()=>{
+    if(bFloor===0){setBImg('zbuilding3dimg/zbuilding3d-mr.png');return;}
     const img=new Image();
-    img.onload=()=>setBImg(img.naturalWidth>0?`building3d-l${bFloor}.png`:'building3d-mm.png');
-    img.onerror=()=>setBImg('building3d-mm.png');
-    img.src=`building3d-l${bFloor}.png`;
+    img.onload=()=>setBImg(`zbuilding3dimg/zbuilding3d-l${bFloor}.png`);
+    img.onerror=()=>setBImg('zbuilding3dimg/zbuilding3d-mr.png');
+    img.src=`zbuilding3dimg/zbuilding3d-l${bFloor}.png`;
   },[bFloor]);
+  useEffect(()=>{
+    if(zBFloor===0){setZBImg('build3dimg/build3dimg-mr.png');return;}
+    const img=new Image();
+    img.onload=()=>setZBImg(`build3dimg/build3dimg-l${zBFloor}.png`);
+    img.onerror=()=>setZBImg('build3dimg/build3dimg-mr.png');
+    img.src=`build3dimg/build3dimg-l${zBFloor}.png`;
+  },[zBFloor]);
   return(
     <div style={{position:'absolute',inset:0}}>
       <div style={{position:'absolute',top:16,left:'50%',transform:'translateX(-50%)',display:'flex',gap:2,zIndex:10,background:'rgba(6,10,20,0.55)',borderRadius:100,padding:'2px',width:480}}>
@@ -845,16 +1177,81 @@ function BuildingView({aiOpen=false,onToggle3D}){
       {isBuilding?(
         <>
           <Building3D aiOpen={aiOpen}/>
-          <FloorSelector/>
+          <FloorSelector panelVisible={panelVisible}/>
         </>
       ):(
         <div style={{position:'absolute',inset:0}}>
           {tab==='Campus'?(
             <video key="city-video" src="city-view.mp4" autoPlay loop muted playsInline style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
           ):(
-            <img src={tab==='Building'?bImg:VIEW_IMGS[tab]} alt={tab} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
+            <img src={tab==='Building'?bImg:tab==='Zone'?zBImg:VIEW_IMGS[tab]} alt={tab} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
           )}
           <div style={{position:'absolute',inset:0,background:'rgba(7,13,26,.15)'}}/>
+          {tab==='Zone'&&(<>
+            {/* ── Zone: Main Hospital Building pill + connector ── */}
+            <a href="http://test.hokoemc.com:8060/login?redirect=/power/electricChart" target="_blank" rel="noopener noreferrer"
+              style={{position:'absolute',top:'22.13%',left:'53.28%',background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',borderRadius:100,padding:'11px 29px',width:227,height:41,fontSize:16,fontWeight:500,color:'#fff',whiteSpace:'nowrap',zIndex:10,letterSpacing:'0.01em',cursor:'pointer',textDecoration:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
+              Main Hospital Building
+            </a>
+            <div style={{position:'absolute',left:'calc(53.28% + 113px)',top:'calc(22.13% + 41px)',width:1,height:54,background:'rgba(255,255,255,0.45)',zIndex:9}}/>
+            <div style={{position:'absolute',left:'calc(53.28% + 108px)',top:'calc(22.13% + 93px)',width:10,height:10,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.65)',background:'rgba(24,25,31,0.5)',zIndex:9}}/>
+
+            {/* ── Floor selector: 7F–1F ── */}
+            <div style={{position:'absolute',left:panelVisible?420:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,width:36,transition:'left 0.4s cubic-bezier(0.4,0,0.2,1)'}}>
+              {[7,6,5,4,3,2,1].map((f,i)=>(
+                <button key={f} onClick={()=>setZBFloor(f)} className="floor-in" style={{animationDelay:`${i*60}ms`,background:zBFloor===f?'#18191f':'none',border:'none',cursor:'pointer',fontSize:16,fontWeight:zBFloor===f?700:400,color:zBFloor===f?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'background .15s, color .15s, font-weight .15s'}}>{f}F</button>
+              ))}
+            </div>
+
+            {zBFloor>0&&(()=>{
+              const floorData=FLOORS.find(f=>f.id===zBFloor)||FLOORS[FLOORS.length-1];
+              const top=`${68-(zBFloor-1)*8}%`;
+              const savings=Math.round((1-floorData.optimized/floorData.consumption)*100);
+              const tipLeft='29.06%'; const tipTop='27.41%';
+              return(<>
+                <div
+                  onMouseEnter={()=>setZBHover(true)}
+                  onMouseLeave={()=>setZBHover(false)}
+                  style={{position:'absolute',left:'30%',width:'50%',top,height:'10%',zIndex:11,cursor:'default'}}
+                />
+                {zBHover&&(<>
+                  <div style={{position:'absolute',left:tipLeft,top:tipTop,zIndex:20,
+                    background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',
+                    borderRadius:12,padding:17,width:184,
+                    pointerEvents:'none',display:'flex',flexDirection:'column',gap:12}}>
+                    <div style={{fontSize:14,fontWeight:500,color:'#fff'}}>{zBFloor} Floor</div>
+                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                      <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>Current consumption</div>
+                      <div><span style={{fontSize:16,fontWeight:500,color:'#fff'}}>{floorData.consumption} </span><span style={{fontSize:11,fontWeight:500,color:'#fff'}}>kWh</span></div>
+                    </div>
+                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                      <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>After optimization</div>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                        <div><span style={{fontSize:15,fontWeight:500,color:'#5576ef'}}>{floorData.optimized} </span><span style={{fontSize:11,fontWeight:500,color:'#5576ef'}}>kWh</span></div>
+                        <div style={{display:'flex',alignItems:'center',gap:4}}>
+                          <span style={{fontSize:15,fontWeight:500,color:'#22c55e'}}>+{savings}%</span>
+                          <GreenDot/>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {(()=>{
+                    const bandTopPct=68-(zBFloor-1)*8;
+                    const x1=34,y1=41,x2=55,y2=bandTopPct+5;
+                    return(
+                      <svg style={{position:'absolute',left:0,top:0,width:'100%',height:'100%',zIndex:19,pointerEvents:'none'}} viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`}
+                              stroke="rgba(255,255,255,0.45)" strokeWidth="0.1" strokeDasharray="0.4 0.3"/>
+                        <circle cx={`${x1}%`} cy={`${y1}%`} r="0.5" fill="rgba(24,25,31,0.5)" stroke="rgba(255,255,255,0.65)" strokeWidth="0.15"/>
+                        <circle cx={`${x2}%`} cy={`${y2}%`} r="0.5" fill="rgba(24,25,31,0.5)" stroke="rgba(255,255,255,0.65)" strokeWidth="0.15"/>
+                      </svg>
+                    );
+                  })()}
+                </>)}
+              </>);
+            })()}
+          </>)}
+
           {tab==='Building'&&(<>
             {/* ── Main Hospital Building pill + vertical connector ── */}
             <a href="http://test.hokoemc.com:8060/login?redirect=/power/electricChart" target="_blank" rel="noopener noreferrer"
@@ -867,24 +1264,23 @@ function BuildingView({aiOpen=false,onToggle3D}){
             <div style={{position:'absolute',left:'calc(53.28% + 108px)',top:'calc(22.13% + 93px)',width:10,height:10,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.65)',background:'rgba(24,25,31,0.5)',zIndex:9}}/>
 
             {/* ── Floor selector ── */}
-            <div style={{position:'absolute',left:420,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,width:36}}>
-              {[7,6,5,4,3,2,1].map(f=>(
-                <button key={f} onClick={()=>setBFloor(f)} style={{background:bFloor===f?'#18191f':'none',border:'none',cursor:'pointer',fontSize:16,fontWeight:bFloor===f?700:400,color:bFloor===f?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'all .15s'}}>{f}F</button>
+            <div style={{position:'absolute',left:panelVisible?420:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,width:36,transition:'left 0.4s cubic-bezier(0.4,0,0.2,1)'}}>
+              {[7,6,5,4,3,2,1].map((f,i)=>(
+                <button key={f} onClick={()=>setBFloor(f)} className="floor-in" style={{animationDelay:`${i*60}ms`,background:bFloor===f?'#18191f':'none',border:'none',cursor:'pointer',fontSize:16,fontWeight:bFloor===f?700:400,color:bFloor===f?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'background .15s, color .15s, font-weight .15s'}}>{f}F</button>
               ))}
             </div>
 
-            {(()=>{
+            {bFloor>0&&(()=>{
               const floorData=FLOORS.find(f=>f.id===bFloor)||FLOORS[FLOORS.length-1];
-              const top=`${76-(bFloor-1)*8}%`;
+              const top=`${68-(bFloor-1)*8}%`;
               const savings=Math.round((1-floorData.optimized/floorData.consumption)*100);
-              // Tooltip fixed position (Figma: left 29.06%, top 27.41%)
               const tipLeft='29.06%'; const tipTop='27.41%';
               return(<>
                 {/* hover zone on floor band */}
                 <div
                   onMouseEnter={()=>setBHover(true)}
                   onMouseLeave={()=>setBHover(false)}
-                  style={{position:'absolute',left:'30%',width:'50%',top,height:'14%',zIndex:11,cursor:'default'}}
+                  style={{position:'absolute',left:'30%',width:'50%',top,height:'10%',zIndex:11,cursor:'default'}}
                 />
                 {bHover&&(<>
                   {/* ── Tooltip card ── */}
@@ -908,13 +1304,11 @@ function BuildingView({aiOpen=false,onToggle3D}){
                       </div>
                     </div>
                   </div>
-                  {/* ── Diagonal connector: tooltip bottom → floor band (using viewBox percentages) ── */}
+                  {/* ── Diagonal connector ── */}
                   {(()=>{
-                    // Tooltip bottom-center in % of viewport: left 29.06%+92px≈34%, top 27.41%+148px≈41.1%
-                    // Floor band target: ~55% x, floor top + 7%
-                    const bandTopPct = 76-(bFloor-1)*8;
-                    const x1=34, y1=41;
-                    const x2=55, y2=bandTopPct+7;
+                    const bandTopPct=68-(bFloor-1)*8;
+                    const x1=34,y1=41;
+                    const x2=55,y2=bandTopPct+5;
                     return(
                       <svg style={{position:'absolute',left:0,top:0,width:'100%',height:'100%',zIndex:19,pointerEvents:'none'}} viewBox="0 0 100 100" preserveAspectRatio="none">
                         <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`}
@@ -932,7 +1326,13 @@ function BuildingView({aiOpen=false,onToggle3D}){
           </>)}
         </div>
       )}
-      <MapControls onToggle3D={onToggle3D}/>
+      <MapControls onToggle3D={onToggle3D} onTogglePanel={onTogglePanel} panelVisible={panelVisible} tab={tab}
+        onRefresh={()=>{
+          // reset current tab's 3D view state
+          if(tab==='Building'){setBFloor(0);}
+          else if(tab==='Zone'){setZBFloor(0);}
+          onRefresh&&onRefresh();
+        }}/>
     </div>
   );
 }
@@ -959,17 +1359,25 @@ function IntroScreen({onDone}){
 function App(){
   const [intro,setIntro]=useState(true);
   const [show3D,setShow3D]=useState(false);
+  const [panelVisible,setPanelVisible]=useState(true);
+  const [panelKey,setPanelKey]=useState(0);
   return(
     <EProvider>
       {intro&&<IntroScreen onDone={()=>setIntro(false)}/>}
       {show3D&&<Globe3D onClose={()=>setShow3D(false)}/>}
       <div style={{position:'relative',height:'100vh',overflow:'hidden'}}>
-        <BuildingView onToggle3D={()=>setShow3D(true)}/>
-        <div style={{position:'absolute',left:0,top:0,width:420,height:'100%',minHeight:1080,display:'flex',flexDirection:'column',gap:8,padding:20,overflowY:'hidden',zIndex:5}}>
-          <AISuggestionPanel/>
-          <EnergyChart/>
-          <StatsCards/>
-          <SavingsChart/>
+        <BuildingView onToggle3D={()=>setShow3D(true)} onTogglePanel={()=>setPanelVisible(v=>!v)} panelVisible={panelVisible}
+          onRefresh={()=>setPanelKey(k=>k+1)}/>
+        <div style={{position:'absolute',left:0,top:0,width:420,height:'100%',display:'flex',flexDirection:'column',gap:8,padding:20,overflowY:'auto',overflowX:'hidden',zIndex:5,
+          transform:panelVisible?'translateX(0)':'translateX(-440px)',
+          transition:'transform 0.4s cubic-bezier(0.4,0,0.2,1)',
+          pointerEvents:panelVisible?'auto':'none'}}>
+          <React.Fragment key={panelKey}>
+            <AISuggestionPanel/>
+            <EnergyChart/>
+            <StatsCards/>
+            <SavingsChart/>
+          </React.Fragment>
         </div>
         <a href="http://demo.ai-hvac001.cn/index.html" target="_blank" rel="noopener noreferrer"
           style={{position:'absolute',top:16,right:16,zIndex:50,width:36,height:36,borderRadius:18,background:'linear-gradient(135deg,rgba(143,231,163,0.12) 0%,rgba(23,204,200,0.12) 100%)',border:'1px solid rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,0.4)',cursor:'pointer',textDecoration:'none',transition:'box-shadow .2s'}}
