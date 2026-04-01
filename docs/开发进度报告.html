@@ -1,0 +1,104 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>开发进度报告</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;color:#1a1a2e;background:#fff;max-width:900px;margin:0 auto;padding:40px 48px;font-size:14px;line-height:1.7}
+h1{font-size:26px;font-weight:700;color:#0f172a;border-bottom:3px solid #3b82f6;padding-bottom:12px;margin-bottom:8px}
+h2{font-size:19px;font-weight:700;color:#1e293b;margin-top:36px;border-left:4px solid #3b82f6;padding-left:12px}
+h3{font-size:15px;font-weight:600;color:#334155;margin-top:24px}
+h4{font-size:14px;font-weight:600;color:#475569;margin-top:16px}
+table{border-collapse:collapse;width:100%;margin:12px 0 20px;font-size:13px}
+th{background:#1e40af;color:#fff;padding:8px 12px;text-align:left;font-weight:600}
+td{padding:7px 12px;border-bottom:1px solid #e2e8f0}
+tr:nth-child(even) td{background:#f8fafc}
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:'SF Mono','Fira Code',monospace;font-size:12px;color:#0f172a}
+pre{background:#0f172a;color:#e2e8f0;padding:16px 20px;border-radius:8px;overflow-x:auto;font-size:12px;line-height:1.6}
+blockquote{border-left:4px solid #94a3b8;margin:0;padding:4px 16px;color:#64748b}
+.meta{color:#64748b;font-size:13px;margin-bottom:4px}
+hr{border:none;border-top:1px solid #e2e8f0;margin:28px 0}
+a{color:#2563eb;text-decoration:none}
+ul,ol{padding-left:24px}
+li{margin:4px 0}
+</style></head><body><h1>智慧城市平台 — 开发进度报告</h1>
+<p><strong>文档版本：</strong> v1.0</p>
+<p><strong>报告日期：</strong> 2026-04-01</p>
+<p><strong>当前平台版本：</strong> v3.3.0</p>
+<p><strong>主文件：</strong> <code>index-standalone.html</code></p>
+<p><strong>Figma 设计稿：</strong> <a href="https://www.figma.com/design/zOsnUZun5PyXPgfz926Agg/">Des_CC_FigmaBuilding3D</a></p>
+<hr>
+<h2>一、项目概况</h2>
+<h3>1.1 项目定位</h3>
+<p>智慧城市能耗管理平台（Smart City Platform），面向建筑能耗管理场景，提供多层级视图（园区 → 建筑 → 楼层 → 区域）的能耗可视化、AI 优化建议及数据分析功能。</p>
+<h3>1.2 技术架构</h3>
+<table><tr><th>层级</th><th>技术选型</th></tr><tr><td>框架</td><td>React 18（UMD，Babel Standalone 浏览器端 JSX 编译）</td></tr><tr><td>3D 渲染</td><td>Three.js（WebGL，用于 Globe3D 地球仪与楼层着色）</td></tr><tr><td>图表</td><td>Chart.js 4.4.0 + chartjs-plugin-datalabels 2.2.0</td></tr><tr><td>部署形式</td><td><strong>单文件 HTML</strong>（zero-build，无需 Node/构建工具即可运行）</td></tr><tr><td>设计同步</td><td>Figma MCP 插件（html-to-design capture）</td></tr><tr><td>版本管理</td><td>Git（本地 + origin/main）</td></tr></table>
+<h3>1.3 文件结构</h3>
+<pre><code>smart-city-platform/
+<p>├── index-standalone.html     # 主文件（全部代码）</p>
+<p>├── build3dimg/               # Zone tab 楼层图片（build3dimg-mr.png + l1–l7）</p>
+<p>├── zbuilding3dimg/           # Building tab 楼层图片（zbuilding3d-mr.png + l1–l7）</p>
+<p>├── city-view.mp4             # 启动动画视频</p>
+<p>├── city-overview.png         # 启动视频海报帧</p>
+<p>├── app-icon.png              # 右上角应用图标</p>
+<p>├── zone-view.png             # Zone tab 背景图</p>
+<p>└── docs/                     # 本文档目录</p>
+<p></code></pre></p>
+<hr>
+<h2>二、版本历史</h2>
+<h3>v3.3.0（2026-04-01）— 当前版本</h3>
+<ul><ul><li><strong>动画套件完整实现</strong></li></ul></ul>
+<p>  - AI Suggestion 打字机效果（页面加载后 1s 开始，速度 14ms/字符）</p>
+<p>  - 左侧模块 CSS fadeUp 逐一出现（pa1=0.1s / pa2=2.1s / pa3=2.0s / pa4=2.05s）</p>
+<p>  - Energy Consumption 柱图波浪增长（2.1s 起，每列 500ms 延迟）</p>
+<p>  - Stats Cards 数值 count-up（2.0s 起，easeInOut，5.15s 完成）</p>
+<p>  - Monthly Savings 折线从左向右绘制（2.05s 起，2950ms 内完成）</p>
+<ul><ul><li><strong>刷新按钮</strong>（↻）加入地图控件：重置当前 tab 3D 视图 + 重播左侧所有动画</li>
+<p></ul><ul><li><strong>楼层选择器淡入动效</strong>（fadeSlideIn，7F→1F 每按钮 60ms 错开）</li></p>
+<p></ul><ul><li>Building tab 图片切换至 <code>zbuilding3dimg/</code> 目录</li></p>
+<p></ul><ul><li>Zone tab 图片切换至 <code>build3dimg/</code> 目录</li></p>
+<p></ul><ul><li>Figma 设计同步（node-id: 113-2）</li></ul></ul></p>
+<h3>v3.2.x（2026-03-31）</h3>
+<ul><ul><li>v3.2.1：全面对齐 Figma 1920×1080 设计稿（左侧面板比例、覆层位置）</li>
+<p></ul><ul><li>v3.2.0：UI 视觉重构（深色卡片背景 + 虚线连接器 + tooltip 弹窗）</li></p>
+<p></ul><ul><li>Building tab overlay 精确匹配 Figma（悬浮区域、虚线连接器、tooltip）</li></p>
+<p></ul><ul><li>楼层悬浮位置公式修正：<code>68-(floor-1)*8%</code></li></ul></ul></p>
+<h3>v3.1.x（2026-03-30）</h3>
+<ul><ul><li>v3.1.5：Globe3D 真实地球纹理 + 星空 + 大气光晕 + 云层</li>
+<p></ul><ul><li>v3.1.4：楼层选择器顺序修正（7F 在上，1F 在下）</li></p>
+<p></ul><ul><li>v3.1.3：Building tab 楼层悬停绿色区域 → 能耗 tooltip 弹窗</li></p>
+<p></ul><ul><li>v3.1.2：UI 优化（毛玻璃 Tab 栏、更深卡片背景）</li></p>
+<p></ul><ul><li>v3.1.1：启动视频海报帧（city-overview.png）</li></p>
+<p></ul><ul><li>v3.1.0：Main Hospital Building 标签可点击，链接至 hokoemc 仪表盘</li></ul></ul></p>
+<h3>v3.0.x（2026-03-30）</h3>
+<ul><ul><li>v3.0.8：App 图标链接更新至 demo.ai-hvac001.cn</li>
+<p></ul><ul><li>v3.0.7：逐楼层图片支持（l1–l7 小写文件名）</li></p>
+<p></ul><ul><li>v3.0.5：修复 Building tab 黑屏问题（图片路径 404）</li></p>
+<p></ul><ul><li>v3.0.4：启动介绍优化（海报帧预加载 + 8s 自动跳过）</li></p>
+<p></ul><ul><li>v3.0.3：Building tab 动态楼层图片（含 onError 回退）</li></p>
+<p></ul><ul><li>v3.0.2：默认 tab 改为 Building</li></p>
+<p></ul><ul><li>v3.0.1：AI 按钮替换为 Smart City Platform 应用图标</li></ul></ul></p>
+<h3>v2.x（2026-03-23 至 03-30）</h3>
+<ul><ul><li>v2.3.1：Three.js Globe3D 地球仪（可拖拽、缩放）</li>
+<p></ul><ul><li>v2.0：AI 对话面板、多视图视频、3D 建筑自动居中</li></p>
+<p></ul><ul><li>全屏启动视频（city-view.mp4）+ Skip 按钮</li></p>
+<p></ul><ul><li>Tab 切换：Campus / Building / Floor / Zone 四视图</li></ul></ul></p>
+<h3>v1.x（2026-03-19 至 03-23）</h3>
+<ul><ul><li>初始版本：单文件仪表盘（能耗卡片、图表、侧边栏）</li>
+<p></ul><ul><li>Figma 设计稿同步（节点 8-2、8-266）</li></p>
+<p></ul><ul><li>TopNav 毛玻璃样式、侧边栏图标</li></p>
+<p></ul><ul><li>城市视图切换（City / District / Street / Building）</li></ul></ul></p>
+<hr>
+<h2>三、已完成功能清单</h2>
+<h3>3.1 视图与导航</h3>
+<table><tr><th>功能</th><th>状态</th><th>说明</th></tr><tr><td>Campus Tab</td><td>✅</td><td>城市视频循环播放</td></tr><tr><td>Building Tab</td><td>✅</td><td>3D 建筑图 + 楼层选择（1F–7F）+ hover tooltip</td></tr><tr><td>Floor Tab</td><td>✅</td><td>Three.js 3D 建筑模型（可交互旋转/缩放）</td></tr><tr><td>Zone Tab</td><td>✅</td><td>建筑图 + 楼层选择（1F–7F）+ hover tooltip</td></tr><tr><td>Tab 切换动画</td><td>✅</td><td>毛玻璃样式 Tab 栏，平滑切换</td></tr><tr><td>启动介绍动画</td><td>✅</td><td>全屏视频 + 海报帧预加载 + 8s 自动跳过</td></tr><tr><td>Globe3D</td><td>✅</td><td>Three.js 地球仪（纹理 + 星空 + 大气 + 云层 + 拖拽/缩放）</td></tr></table>
+<h3>3.2 3D 建筑交互（Building & Zone Tab）</h3>
+<table><tr><th>功能</th><th>状态</th><th>说明</th></tr><tr><td>楼层选择器 7F–1F</td><td>✅</td><td>左侧竖排按钮，选中态高亮</td></tr><tr><td>楼层图片切换</td><td>✅</td><td>点击楼层加载对应图片（含预加载 + onerror 回退）</td></tr><tr><td>楼层 Hover 绿色区域</td><td>✅</td><td>悬停触发绿色高亮带</td></tr><tr><td>Tooltip 弹窗</td><td>✅</td><td>显示楼层名、当前用量、优化后用量、节省比例</td></tr><tr><td>虚线连接器</td><td>✅</td><td>SVG 对角虚线连接 tooltip 与楼层区域</td></tr><tr><td>Main Hospital Building 标签</td><td>✅</td><td>浮动标签 + 竖线连接器，可点击跳转外部系统</td></tr><tr><td>楼层选择器淡入动效</td><td>✅</td><td>页面/Tab 加载时逐按钮淡入（60ms 错开）</td></tr></table>
+<h3>3.3 左侧数据面板</h3>
+<table><tr><th>功能</th><th>状态</th><th>说明</th></tr><tr><td>AI Suggestion 卡片</td><td>✅</td><td>打字机文字效果、Show more 弹窗、Dismiss / Apply 按钮</td></tr><tr><td>AI Detail 弹窗</td><td>✅</td><td>ReactDOM.createPortal 渲染（避免 transform 层叠问题）</td></tr><tr><td>Energy Consumption 柱图</td><td>✅</td><td>Chart.js，双色柱（当前/优化），波浪增长动画，datalabels</td></tr><tr><td>Stats Cards（4张）</td><td>✅</td><td>日/周/月/年用量，count-up 数值递增动画</td></tr><tr><td>Monthly Savings 折线</td><td>✅</td><td>Chart.js，双线（节省成本/能源），从左向右绘制动画，hover 竖线</td></tr><tr><td>面板滑入/滑出</td><td>✅</td><td>左侧面板 translateX 动画，由地图图标切换</td></tr></table>
+<h3>3.4 地图控件（右下角）</h3>
+<table><tr><th>功能</th><th>状态</th><th>说明</th></tr><tr><td>刷新按钮 ↻</td><td>✅</td><td>重置当前 Tab 3D 选择 + 左侧面板动画重播（旋转动效）</td></tr><tr><td>缩放 +/-</td><td>✅（UI）</td><td>按钮已有 UI，逻辑待绑定</td></tr><tr><td>全屏切换</td><td>✅</td><td>requestFullscreen API</td></tr><tr><td>3D 按钮</td><td>✅</td><td>打开 Globe3D 地球仪弹窗</td></tr><tr><td>地图图标</td><td>✅</td><td>切换左侧面板显示/隐藏</td></tr></table>
+<h3>3.5 动画系统</h3>
+<table><tr><th>动画</th><th>触发时机</th><th>时长</th></tr><tr><td>AI Suggestion 打字机</td><td>页面加载 +1s</td><td>~3s（14ms/字符）</td></tr><tr><td>模块 fadeUp（pa1）</td><td>立即（0.1s）</td><td>0.6s</td></tr><tr><td>模块 fadeUp（pa2/Energy Chart）</td><td>2.1s</td><td>0.6s</td></tr><tr><td>模块 fadeUp（pa3/Stats Cards）</td><td>2.0s</td><td>0.6s</td></tr><tr><td>模块 fadeUp（pa4/Monthly Savings）</td><td>2.05s</td><td>0.6s</td></tr><tr><td>柱图波浪增长</td><td>2.1s</td><td>每列 +500ms</td></tr><tr><td>Stats Cards count-up</td><td>2.0s</td><td>3150ms（至 5.15s）</td></tr><tr><td>折线从左绘制</td><td>2.05s</td><td>2950ms（至 5s）</td></tr><tr><td>楼层按钮 fadeSlideIn</td><td>Tab 加载时</td><td>每按钮 60ms 错开</td></tr></table>
+<hr>
+<h2>四、待开发 / 已知问题</h2>
+<table><tr><th>项目</th><th>类型</th><th>优先级</th><th>说明</th></tr><tr><td>缩放 +/- 功能绑定</td><td>待开发</td><td>中</td><td>UI 按钮已有，需绑定 3D 视图缩放逻辑</td></tr><tr><td>Campus Tab 内容</td><td>待开发</td><td>中</td><td>目前仅播放视频，无数据叠加层</td></tr><tr><td>Floor Tab 楼层选择</td><td>待开发</td><td>中</td><td>Three.js 模型已有，楼层点击高亮逻辑待实现</td></tr><tr><td>Zone Tab 区域划分</td><td>待开发</td><td>低</td><td>目前 ZONES 常量保留但未使用</td></tr><tr><td>实时数据接口</td><td>待开发</td><td>高</td><td>目前数据为本地模拟（±5% 随机更新）</td></tr><tr><td>响应式适配</td><td>待开发</td><td>低</td><td>当前固定 1920×1080 布局设计</td></tr><tr><td>单文件拆分重构</td><td>待议</td><td>低</td><td>文件体积增大，可考虑 Vite 工程化拆分</td></tr></table>
+<hr>
+<h2>五、外部依赖与资源</h2>
+<table><tr><th>资源</th><th>用途</th><th>来源</th></tr><tr><td>React 18 UMD</td><td>框架</td><td>CDN (unpkg)</td></tr><tr><td>Babel Standalone</td><td>JSX 编译</td><td>CDN (unpkg)</td></tr><tr><td>Three.js</td><td>Globe3D</td><td>CDN (unpkg)</td></tr><tr><td>Chart.js 4.4.0</td><td>图表</td><td>CDN (unpkg)</td></tr><tr><td>chartjs-plugin-datalabels</td><td>柱图数值标签</td><td>CDN (unpkg)</td></tr><tr><td>hokoemc 仪表盘</td><td>外部跳转链接</td><td>http://test.hokoemc.com:8060</td></tr><tr><td>demo.ai-hvac001.cn</td><td>应用图标跳转</td><td>http://demo.ai-hvac001.cn</td></tr></table>
+<hr>
+<p><em>文档由 Claude Code 自动生成 · 2026-04-01</em></p></body></html>
