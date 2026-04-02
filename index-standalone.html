@@ -79,6 +79,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 *:hover::-webkit-scrollbar-thumb{background:var(--border)}
 *::-webkit-scrollbar-thumb:hover{background:rgba(77,138,240,0.5)}
 
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideIn{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
 @keyframes slideInR{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
@@ -1109,7 +1110,7 @@ function Globe3D({onClose}){
 
 /* ══════════════════ MAP CONTROLS ════════════════════════════════ */
 const bs={width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(24,25,31,0.90)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,color:'var(--muted)',cursor:'pointer'};
-function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab}){
+function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab,onToggleBearing,bearingVisible}){
   const [spinning,setSpinning]=useState(false);
   function handleRefresh(){
     if(spinning)return;
@@ -1138,10 +1139,31 @@ function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab}){
         } else {
           (document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen).call(document);
         }
-      }} style={{...bs,fontSize:11,fontWeight:500,color:'var(--muted)'}}>全屏</button>
+      }} style={{...bs}}>
+        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="15 3 21 3 21 9"/>
+          <polyline points="9 21 3 21 3 15"/>
+          <line x1="21" y1="3" x2="14" y2="10"/>
+          <line x1="3" y1="21" x2="10" y2="14"/>
+        </svg>
+      </button>
     </div>
     <div style={{position:'absolute',right:20,bottom:20,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
       <button onClick={onToggle3D} style={{...bs,fontSize:11,fontWeight:700,color:'var(--text)'}}>3D</button>
+      {/* Bearing monitor toggle */}
+      <button title={bearingVisible?'隐藏监测卡':'显示监测卡'} onClick={onToggleBearing}
+        style={{...bs,opacity:bearingVisible?1:0.45,transition:'opacity .2s'}}
+        onMouseEnter={e=>e.currentTarget.style.background='rgba(40,42,55,0.95)'}
+        onMouseLeave={e=>e.currentTarget.style.background='rgba(24,25,31,0.90)'}>
+        {/* bearing icon: arc + 3 dots */}
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <circle cx="12" cy="12" r="9"/>
+          <circle cx="12" cy="12" r="3"/>
+          <circle cx="12" cy="3.5" r="1.4" fill="currentColor" stroke="none"/>
+          <circle cx="19.8" cy="16" r="1.4" fill="currentColor" stroke="none"/>
+          <circle cx="4.2" cy="16" r="1.4" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
       <button onClick={onTogglePanel} style={{...bs,opacity:panelVisible?1:0.5}}>
         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
       </button>
@@ -1149,179 +1171,61 @@ function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab}){
   </>);
 }
 
-/* ══════════════════ BEARING MONITOR CARDS ══════════════════════ */
-function BearingFrontCard(){
-  const cardStyle={background:'rgba(24,25,31,0.90)',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:6};
-  const balls=[0,1,2,3,4,5,6];
+/* ══════════════════ VIEW CARDS ══════════════════════════════════ */
+// 3 cards — each with its own thumbnail image, crop, and modal image
+const VIEW_CARD_DEFS=[
+  {src:'https://www.figma.com/api/mcp/asset/38888a47-344a-4424-a2c0-454038e5978d', h:'136.91%', top:'-18.75%', overlay:false, modal:'rd/ntimg.png'},
+  {src:'https://www.figma.com/api/mcp/asset/01f065b4-966b-4bb9-82da-0e735520aa03', h:'100%',    top:'0%',      overlay:true,  modal:'rd/ntimg01.png'},
+  {src:'https://www.figma.com/api/mcp/asset/15578e68-f656-44e1-b87f-7152eb333ec9', h:'144.63%', top:'-11.97%', overlay:false, modal:'rd/ntimg.png'},
+];
+function ViewCard({onClick,imgSrc,imgH,imgTop,hasOverlay}){
+  const [hover,setHover]=useState(false);
   return(
-    <div style={cardStyle}>
-      <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.06em',textTransform:'uppercase'}}>Front view</span>
-      <svg width="150" height="96" viewBox="0 0 150 96">
-        <defs>
-          <radialGradient id="redGlw" cx="50%" cy="100%" r="60%">
-            <stop offset="0%" stopColor="#ff3040" stopOpacity="0.95"/>
-            <stop offset="100%" stopColor="#ff3040" stopOpacity="0"/>
-          </radialGradient>
-          <radialGradient id="cardBg" cx="50%" cy="40%" r="70%">
-            <stop offset="0%" stopColor="#2c2f42"/>
-            <stop offset="100%" stopColor="#1c1e2c"/>
-          </radialGradient>
-        </defs>
-        <rect width="150" height="96" rx="6" fill="url(#cardBg)"/>
-        {/* outer arch ring */}
-        <path d="M 12 88 A 63 63 0 0 1 138 88" fill="none" stroke="#3c3f52" strokeWidth="22" strokeLinecap="butt"/>
-        {/* inner shadow */}
-        <path d="M 12 88 A 63 63 0 0 1 138 88" fill="none" stroke="#252838" strokeWidth="8" strokeLinecap="butt"/>
-        {/* red fault glow */}
-        <ellipse cx="75" cy="88" rx="32" ry="16" fill="url(#redGlw)" className="bp"/>
-        {/* balls */}
-        {balls.map(i=>{
-          const a=(180/6)*i;
-          const rad=a*Math.PI/180;
-          const cx=75-63*Math.cos(rad);
-          const cy=88-63*Math.sin(rad);
-          return(
-            <g key={i}>
-              <circle cx={cx} cy={cy} r="9.5" fill="#454760" stroke="#555870" strokeWidth="1.5"/>
-              <circle cx={cx-2.5} cy={cy-2.5} r="3" fill="rgba(255,255,255,0.12)"/>
-            </g>
-          );
-        })}
-      </svg>
+    <div onClick={onClick}
+      onMouseEnter={()=>setHover(true)}
+      onMouseLeave={()=>setHover(false)}
+      style={{background:'rgba(24,25,31,0.90)',borderRadius:10,
+        border:`1px solid ${hover?'rgba(255,255,255,0.25)':'rgba(255,255,255,0.08)'}`,
+        backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',
+        flex:'1 0 0',height:137,position:'relative',overflow:'hidden',minWidth:0,
+        cursor:'pointer',transition:'border-color .2s, box-shadow .2s',
+        boxShadow:hover?'0 0 16px rgba(0,180,255,0.18)':'none'}}>
+      <div style={{display:'flex',flexDirection:'column',gap:6,padding:'11px 17px',height:'100%',boxSizing:'border-box'}}>
+        <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.066em',textTransform:'uppercase',flexShrink:0}}>View</span>
+        <div style={{flex:'1 0 0',position:'relative',overflow:'hidden',borderRadius:4,minHeight:0}}>
+          <img src={imgSrc} alt="view"
+            style={{position:'absolute',left:0,top:imgTop,width:'100%',height:imgH,
+              objectFit:'cover',pointerEvents:'none',
+              transform:hover?'scale(1.03)':'scale(1)',transition:'transform .3s'}}/>
+          {hasOverlay&&<div style={{position:'absolute',inset:0,background:'rgba(0,24,48,0.5)'}}/>}
+          {hover&&<div style={{position:'absolute',bottom:4,right:6,fontSize:9,color:'rgba(255,255,255,0.5)',letterSpacing:'0.04em'}}>Expand</div>}
+        </div>
+      </div>
     </div>
   );
 }
-function BearingSideCard(){
-  const cardStyle={background:'rgba(24,25,31,0.90)',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:6};
-  const hT=[0.35,0.55,0.28,0.72,0.48,0.62,0.85,0.38,0.58,0.44,0.3,0.66,1.0,0.54,0.38,0.74,0.46,0.32,0.58,0.68,0.42,0.5,0.36,0.6];
-  const hB=hT.map(v=>v*0.8);
-  const anom=12;
-  return(
-    <div style={cardStyle}>
-      <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.06em',textTransform:'uppercase'}}>Side view</span>
-      <svg width="192" height="96" viewBox="0 0 192 96">
-        <defs>
-          <radialGradient id="cardBg2" cx="50%" cy="50%" r="70%">
-            <stop offset="0%" stopColor="#2c2f42"/>
-            <stop offset="100%" stopColor="#1c1e2c"/>
-          </radialGradient>
-        </defs>
-        <rect width="192" height="96" rx="6" fill="url(#cardBg2)"/>
-        {/* top bars */}
-        {hT.map((h,i)=>(
-          <rect key={i} x={4+i*8} y={46-h*38} width="6" height={h*38} rx="1"
-            fill={i===anom?'rgba(255,55,55,0.55)':'rgba(120,130,175,0.32)'}/>
-        ))}
-        {/* bottom bars */}
-        {hB.map((h,i)=>(
-          <rect key={i} x={4+i*8} y={50} width="6" height={h*32} rx="1"
-            fill={i===anom?'rgba(255,55,55,0.4)':'rgba(95,105,145,0.22)'}/>
-        ))}
-        {/* blue center band */}
-        <rect x="3" y="43" width="186" height="10" rx="2" fill="rgba(48,120,255,0.72)" className="sb"/>
-        {/* anomaly red marker */}
-        <rect x={4+anom*8-1} y="41" width="9" height="14" rx="2" fill="rgba(255,50,50,0.92)"/>
-        {/* axis labels */}
-        <text x="4" y="94" fontSize="7" fill="rgba(255,255,255,0.25)">0</text>
-        <text x="88" y="94" fontSize="7" fill="rgba(255,255,255,0.25)">500Hz</text>
-        <text x="170" y="94" fontSize="7" fill="rgba(255,255,255,0.25)">1k</text>
-      </svg>
-    </div>
-  );
-}
-
-function BearingTopCard(){
-  const cs={background:'rgba(24,25,31,0.90)',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:6};
-  const n=12;
-  return(
-    <div style={cs}>
-      <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.06em',textTransform:'uppercase'}}>Top view</span>
-      <svg width="150" height="96" viewBox="0 0 150 96">
-        <defs>
-          <radialGradient id="tbg" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#2c2f42"/><stop offset="100%" stopColor="#1c1e2c"/></radialGradient>
-          <radialGradient id="tglow" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#ff3040" stopOpacity="0.8"/><stop offset="100%" stopColor="#ff3040" stopOpacity="0"/></radialGradient>
-        </defs>
-        <rect width="150" height="96" rx="6" fill="url(#tbg)"/>
-        {/* outer ring */}
-        <circle cx="75" cy="48" r="40" fill="none" stroke="#3c3f52" strokeWidth="14"/>
-        {/* inner ring */}
-        <circle cx="75" cy="48" r="18" fill="#252838" stroke="#3c3f52" strokeWidth="3"/>
-        {/* fault glow */}
-        <circle cx="75" cy="8" r="10" fill="url(#tglow)" className="bp"/>
-        {/* balls */}
-        {[...Array(n)].map((_,i)=>{
-          const a=(360/n)*i*Math.PI/180;
-          return <circle key={i} cx={75+33*Math.sin(a)} cy={48-33*Math.cos(a)} r="6.5" fill={i===0?'#7a3038':'#454760'} stroke={i===0?'#cc4050':'#555870'} strokeWidth="1.5"/>;
-        })}
-      </svg>
-    </div>
-  );
-}
-function BearingWaveCard(){
-  const cs={background:'rgba(24,25,31,0.90)',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:6};
-  const pts=[];
-  for(let i=0;i<=180;i+=3){
-    const x=4+i*(184/180);
-    const noise=(i>90&&i<130)?2.8:0.6;
-    const y=48+Math.sin(i*0.22)*14*noise+Math.sin(i*0.8)*4*noise;
-    pts.push(`${x},${y}`);
-  }
-  return(
-    <div style={cs}>
-      <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.06em',textTransform:'uppercase'}}>Waveform</span>
-      <svg width="192" height="96" viewBox="0 0 192 96">
-        <defs><radialGradient id="wbg" cx="50%" cy="50%" r="70%"><stop offset="0%" stopColor="#2c2f42"/><stop offset="100%" stopColor="#1c1e2c"/></radialGradient></defs>
-        <rect width="192" height="96" rx="6" fill="url(#wbg)"/>
-        {/* grid lines */}
-        {[24,48,72].map(y=><line key={y} x1="4" y1={y} x2="188" y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5"/>)}
-        {/* center axis */}
-        <line x1="4" y1="48" x2="188" y2="48" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8"/>
-        {/* waveform */}
-        <polyline points={pts.join(' ')} fill="none" stroke="rgba(48,160,255,0.85)" strokeWidth="1.5" strokeLinejoin="round"/>
-        {/* anomaly highlight zone */}
-        <rect x="94" y="12" width="40" height="72" rx="2" fill="rgba(255,50,50,0.08)"/>
-        <line x1="94" y1="12" x2="94" y2="84" stroke="rgba(255,80,80,0.4)" strokeWidth="0.8" strokeDasharray="3 2"/>
-        <line x1="134" y1="12" x2="134" y2="84" stroke="rgba(255,80,80,0.4)" strokeWidth="0.8" strokeDasharray="3 2"/>
-        <text x="4" y="92" fontSize="7" fill="rgba(255,255,255,0.25)">0ms</text>
-        <text x="84" y="92" fontSize="7" fill="rgba(255,255,255,0.25)">50ms</text>
-        <text x="170" y="92" fontSize="7" fill="rgba(255,255,255,0.25)">100ms</text>
-      </svg>
-    </div>
-  );
-}
-function BearingTempCard(){
-  const cs={background:'rgba(24,25,31,0.90)',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:6};
-  const temp=74; const max=120; const pct=temp/max;
-  const arcLen=220; const used=arcLen*pct;
-  const r=36; const cx=75; const cy=72;
-  function arc(start,end,radius){
-    const s=start*Math.PI/180; const e=end*Math.PI/180;
-    return `M ${cx+radius*Math.cos(s)} ${cy+radius*Math.sin(s)} A ${radius} ${radius} 0 0 1 ${cx+radius*Math.cos(e)} ${cy+radius*Math.sin(e)}`;
-  }
-  return(
-    <div style={cs}>
-      <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.06em',textTransform:'uppercase'}}>Temperature</span>
-      <svg width="150" height="96" viewBox="0 0 150 96">
-        <defs>
-          <linearGradient id="tgrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#3080ff"/><stop offset="60%" stopColor="#f0a030"/><stop offset="100%" stopColor="#ff3040"/>
-          </linearGradient>
-          <radialGradient id="tempbg" cx="50%" cy="50%" r="70%"><stop offset="0%" stopColor="#2c2f42"/><stop offset="100%" stopColor="#1c1e2c"/></radialGradient>
-        </defs>
-        <rect width="150" height="96" rx="6" fill="url(#tempbg)"/>
-        {/* track */}
-        <path d={arc(200,360+20,r)} fill="none" stroke="#2e3145" strokeWidth="9" strokeLinecap="round"/>
-        {/* value arc */}
-        <path d={arc(200,200+220*pct,r)} fill="none" stroke="url(#tgrad)" strokeWidth="9" strokeLinecap="round"/>
-        {/* needle */}
-        {(()=>{const a=(200+220*pct)*Math.PI/180;return <line x1={cx} y1={cy} x2={cx+28*Math.cos(a)} y2={cy+28*Math.sin(a)} stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" strokeLinecap="round"/>;})()}
-        <circle cx={cx} cy={cy} r="4" fill="#454760" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5"/>
-        <text x={cx} y={cy-10} textAnchor="middle" fontSize="14" fontWeight="700" fill="#fff">{temp}°</text>
-        <text x={cx} y={cy+4} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.35)">/ {max}°C</text>
-        <text x="14" y="90" fontSize="7" fill="rgba(255,255,255,0.25)">0°C</text>
-        <text x="108" y="90" fontSize="7" fill="rgba(255,255,255,0.25)">{max}°C</text>
-      </svg>
-    </div>
+/* ── View Modal ── */
+function ViewModal({onClose,img}){
+  return ReactDOM.createPortal(
+    <div onClick={onClose}
+      style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,0.88)',
+        display:'flex',alignItems:'center',justifyContent:'center',
+        animation:'fadeIn .2s ease both'}}>
+      <div onClick={e=>e.stopPropagation()}
+        style={{position:'relative',maxWidth:'96vw',maxHeight:'92vh',
+          borderRadius:12,overflow:'hidden',boxShadow:'0 8px 48px rgba(0,0,0,0.7)',
+          border:'1px solid rgba(255,255,255,0.12)'}}>
+        <img src={img} alt="系统流程图"
+          style={{display:'block',maxWidth:'96vw',maxHeight:'92vh',objectFit:'contain'}}/>
+        {/* close button */}
+        <button onClick={onClose}
+          style={{position:'absolute',top:12,right:12,width:32,height:32,borderRadius:16,
+            background:'rgba(0,0,0,0.6)',border:'1px solid rgba(255,255,255,0.2)',
+            color:'#fff',fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+            lineHeight:1,backdropFilter:'blur(4px)'}}>✕</button>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -1335,8 +1239,10 @@ const VIEW_IMGS={
 function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefresh}){
   const [tab,setTab]=useState('Campus');
   const [tabBarVisible,setTabBarVisible]=useState(false);
-  const [bFloor,setBFloor]=useState(0);
-  const [bImg,setBImg]=useState('zbuilding3dimg/zbuilding3d-mr.png');
+  const [bearingVisible,setBearingVisible]=useState(false);
+  const [viewModalOpen,setViewModalOpen]=useState(null);
+  const [bFloor,setBFloor]=useState(5);
+  const [bImg,setBImg]=useState('newbuilding3dimg/newbuilding3d-mr.png');
   const [bHover,setBHover]=useState(false);
   const [zZone,setZZone]=useState('A');
   const [zHover,setZHover]=useState(false);
@@ -1345,11 +1251,11 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
   const [zBHover,setZBHover]=useState(false);
   const isBuilding=tab==='Floor';
   useEffect(()=>{
-    if(bFloor===0){setBImg('zbuilding3dimg/zbuilding3d-mr.png');return;}
+    if(bFloor===0){setBImg('newbuilding3dimg/newbuilding3d-mr.png');return;}
     const img=new Image();
-    img.onload=()=>setBImg(`zbuilding3dimg/zbuilding3d-l${bFloor}.png`);
-    img.onerror=()=>setBImg('zbuilding3dimg/zbuilding3d-mr.png');
-    img.src=`zbuilding3dimg/zbuilding3d-l${bFloor}.png`;
+    img.onload=()=>setBImg(`newbuilding3dimg/newbuilding3d-l${bFloor}.png`);
+    img.onerror=()=>setBImg('newbuilding3dimg/newbuilding3d-mr.png');
+    img.src=`newbuilding3dimg/newbuilding3d-l${bFloor}.png`;
   },[bFloor]);
   useEffect(()=>{
     if(zBFloor===0){setZBImg('build3dimg/build3dimg-mr.png');return;}
@@ -1361,7 +1267,7 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
   return(
     <div style={{position:'absolute',inset:0}}>
       <div style={{position:'absolute',top:16,left:'50%',transform:`translateX(-50%) translateY(${tabBarVisible?0:-60}px)`,opacity:tabBarVisible?1:0,pointerEvents:tabBarVisible?'auto':'none',display:'flex',gap:2,zIndex:10,background:'rgba(6,10,20,0.55)',borderRadius:100,padding:'2px',width:480,transition:'transform .35s cubic-bezier(0.4,0,0.2,1), opacity .35s'}}>
-        {['Campus','Building','Floor','Zone'].map(t=>{const a=t===tab;return(
+        {['Campus','Building','Floor'].map(t=>{const a=t===tab;return(
           <button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:'5px 16px',borderRadius:100,fontSize:16,fontWeight:a?700:400,color:a?'#fff':'rgba(255,255,255,0.85)',background:a?'#16171a':'transparent',border:'none',cursor:'pointer',transition:'all .15s'}}>{t}</button>
         );})}
       </div>
@@ -1370,9 +1276,11 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
         style={{position:'absolute',top:16,right:60,zIndex:50,width:36,height:36,borderRadius:18,background:tabBarVisible?'rgba(24,25,31,0.90)':'rgba(99,102,241,0.25)',border:`1px solid ${tabBarVisible?'rgba(255,255,255,0.12)':'rgba(99,102,241,0.6)'}`,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',transition:'background .2s, border .2s, box-shadow .2s',boxShadow:tabBarVisible?'none':'0 0 10px rgba(99,102,241,0.4)'}}
         onMouseEnter={e=>e.currentTarget.style.background=tabBarVisible?'rgba(40,42,55,0.95)':'rgba(99,102,241,0.4)'}
         onMouseLeave={e=>e.currentTarget.style.background=tabBarVisible?'rgba(24,25,31,0.90)':'rgba(99,102,241,0.25)'}>
-        <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{color:tabBarVisible?'rgba(255,255,255,0.7)':'rgba(99,102,241,1)'}}>
-          <rect x="3" y="3" width="18" height="18" rx="3"/>
-          <line x1="3" y1="9" x2="21" y2="9"/>
+        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinejoin="round" strokeLinecap="round" style={{color:tabBarVisible?'rgba(255,255,255,0.7)':'rgba(99,102,241,1)'}}>
+          {/* layers / stack icon */}
+          <polygon points="12 2 22 8.5 12 15 2 8.5"/>
+          <polyline points="2 13.5 12 20 22 13.5"/>
+          <polyline points="2 10.5 12 17 22 10.5"/>
         </svg>
       </button>
       {isBuilding?(
@@ -1387,7 +1295,7 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
               <video key="city-video" src="city-view.mp4" autoPlay loop muted playsInline
                 style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
               {/* 红框热区：点击进入 Building */}
-              <div onClick={()=>setTab('Building')} title="进入 Building 视图"
+              <div onClick={()=>setTab('Building')} title="Enter Building View"
                 style={{position:'absolute',left:'23%',top:'16%',width:'59%',height:'65%',zIndex:5,cursor:'pointer',
                   borderRadius:8,
                   transition:'background .2s'}}
@@ -1398,7 +1306,7 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
             <img src={tab==='Building'?bImg:tab==='Zone'?zBImg:VIEW_IMGS[tab]} alt={tab} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
           )}
           <div style={{position:'absolute',inset:0,background:'rgba(7,13,26,.15)'}}/>
-          {tab==='Zone'&&(<>
+          {false&&tab==='Zone'&&(<>
             {/* ── Zone: Main Hospital Building pill + connector ── */}
             <a href="http://test.hokoemc.com:8060/login?redirect=/power/electricChart" target="_blank" rel="noopener noreferrer"
               style={{position:'absolute',top:'22.13%',left:'53.28%',background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',borderRadius:100,padding:'11px 29px',width:227,height:41,fontSize:16,fontWeight:500,color:'#fff',whiteSpace:'nowrap',zIndex:10,letterSpacing:'0.01em',cursor:'pointer',textDecoration:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -1464,15 +1372,6 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
           </>)}
 
           {tab==='Building'&&(<>
-            {/* ── Main Hospital Building pill + vertical connector ── */}
-            <a href="http://test.hokoemc.com:8060/login?redirect=/power/electricChart" target="_blank" rel="noopener noreferrer"
-              style={{position:'absolute',top:'22.13%',left:'53.28%',background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',borderRadius:100,padding:'11px 29px',width:227,height:41,fontSize:16,fontWeight:500,color:'#fff',whiteSpace:'nowrap',zIndex:10,letterSpacing:'0.01em',cursor:'pointer',textDecoration:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
-              Main Hospital Building
-            </a>
-            {/* vertical line below label */}
-            <div style={{position:'absolute',left:'calc(53.28% + 113px)',top:'calc(22.13% + 41px)',width:1,height:'calc(16.87% - 46px)',background:'rgba(255,255,255,0.45)',zIndex:9}}/>
-            {/* dot at bottom of line */}
-            <div style={{position:'absolute',left:'calc(53.28% + 108px)',top:'calc(39% - 5px)',width:10,height:10,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.65)',background:'rgba(24,25,31,0.5)',zIndex:9}}/>
 
             {/* ── Floor selector ── */}
             <div style={{position:'absolute',left:panelVisible?420:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,width:36,transition:'left 0.4s cubic-bezier(0.4,0,0.2,1)'}}>
@@ -1481,78 +1380,54 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
               ))}
             </div>
 
-            {/* ── Bearing Monitor ── */}
-            <div style={{position:'absolute',bottom:20,left:panelVisible?440:30,display:'flex',gap:12,zIndex:10}}>
-              <BearingFrontCard/>
-              <BearingSideCard/>
-              <BearingTopCard/>
-              <BearingWaveCard/>
-              <BearingTempCard/>
-            </div>
-
             {bFloor>0&&(()=>{
               const floorData=FLOORS.find(f=>f.id===bFloor)||FLOORS[FLOORS.length-1];
-              const top=`${68-(bFloor-1)*8}%`;
               const savings=Math.round((1-floorData.optimized/floorData.consumption)*100);
-              const tipLeft='29.06%'; const tipTop='27.41%';
-              return(<>
-                {/* hover zone on floor band */}
-                <div
-                  onMouseEnter={()=>setBHover(true)}
-                  onMouseLeave={()=>setBHover(false)}
-                  style={{position:'absolute',left:'30%',width:'50%',top,height:'10%',zIndex:11,cursor:'default'}}
-                />
-                {bHover&&(<>
-                  {/* ── Tooltip card ── */}
-                  <div style={{position:'absolute',left:tipLeft,top:tipTop,zIndex:20,
-                    background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',
-                    borderRadius:12,padding:17,width:184,
-                    pointerEvents:'none',display:'flex',flexDirection:'column',gap:12}}>
-                    <div style={{fontSize:14,fontWeight:500,color:'#fff'}}>{bFloor} Floor</div>
-                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                      <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>Current consumption</div>
-                      <div><span style={{fontSize:16,fontWeight:500,color:'#fff'}}>{floorData.consumption} </span><span style={{fontSize:11,fontWeight:500,color:'#fff'}}>kWh</span></div>
-                    </div>
-                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                      <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>After optimization</div>
-                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                        <div><span style={{fontSize:15,fontWeight:500,color:'#5576ef'}}>{floorData.optimized} </span><span style={{fontSize:11,fontWeight:500,color:'#5576ef'}}>kWh</span></div>
-                        <div style={{display:'flex',alignItems:'center',gap:4}}>
-                          <span style={{fontSize:15,fontWeight:500,color:'#22c55e'}}>+{savings}%</span>
-                          <GreenDot/>
-                        </div>
+              return(
+                <div style={{position:'absolute',left:'29.06%',top:'27.41%',zIndex:20,
+                  background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',
+                  borderRadius:12,padding:17,width:184,
+                  pointerEvents:'none',display:'flex',flexDirection:'column',gap:12}}>
+                  <div style={{fontSize:14,fontWeight:500,color:'#fff'}}>{bFloor} Floor</div>
+                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                    <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>Current consumption</div>
+                    <div><span style={{fontSize:16,fontWeight:500,color:'#fff'}}>{floorData.consumption} </span><span style={{fontSize:11,fontWeight:500,color:'#fff'}}>kWh</span></div>
+                  </div>
+                  <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                    <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>After optimization</div>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                      <div><span style={{fontSize:15,fontWeight:500,color:'#5576ef'}}>{floorData.optimized} </span><span style={{fontSize:11,fontWeight:500,color:'#5576ef'}}>kWh</span></div>
+                      <div style={{display:'flex',alignItems:'center',gap:4}}>
+                        <span style={{fontSize:15,fontWeight:500,color:'#22c55e'}}>+{savings}%</span>
+                        <GreenDot/>
                       </div>
                     </div>
                   </div>
-                  {/* ── Diagonal connector ── */}
-                  {(()=>{
-                    const bandTopPct=68-(bFloor-1)*8;
-                    const x1=34,y1=41;
-                    const x2=55,y2=bandTopPct+5;
-                    return(
-                      <svg style={{position:'absolute',left:0,top:0,width:'100%',height:'100%',zIndex:19,pointerEvents:'none'}} viewBox="0 0 100 100" preserveAspectRatio="none">
-                        <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`}
-                              stroke="rgba(255,255,255,0.45)" strokeWidth="0.1" strokeDasharray="0.4 0.3"/>
-                        <circle cx={`${x1}%`} cy={`${y1}%`} r="0.5"
-                                fill="rgba(24,25,31,0.5)" stroke="rgba(255,255,255,0.65)" strokeWidth="0.15"/>
-                        <circle cx={`${x2}%`} cy={`${y2}%`} r="0.5"
-                                fill="rgba(24,25,31,0.5)" stroke="rgba(255,255,255,0.65)" strokeWidth="0.15"/>
-                      </svg>
-                    );
-                  })()}
-                </>)}
-              </>);
+                </div>
+              );
             })()}
           </>)}
         </div>
       )}
+      {/* ── View Cards — 全 tab 共用 ── */}
+      <div style={{position:'absolute',bottom:20,left:panelVisible?440:30,right:68,display:'flex',gap:12,zIndex:10,
+        opacity:bearingVisible?1:0,transform:bearingVisible?'translateY(0)':'translateY(16px)',
+        pointerEvents:bearingVisible?'auto':'none',
+        transition:'opacity .35s cubic-bezier(0.4,0,0.2,1), transform .35s cubic-bezier(0.4,0,0.2,1)'}}>
+        {VIEW_CARD_DEFS.map((d,i)=>(
+          <ViewCard key={i} onClick={()=>setViewModalOpen(d.modal)}
+            imgSrc={d.src} imgH={d.h} imgTop={d.top} hasOverlay={d.overlay}/>
+        ))}
+      </div>
       <MapControls onToggle3D={onToggle3D} onTogglePanel={onTogglePanel} panelVisible={panelVisible} tab={tab}
+        bearingVisible={bearingVisible} onToggleBearing={()=>setBearingVisible(v=>!v)}
         onRefresh={()=>{
           // reset current tab's 3D view state
           if(tab==='Building'){setBFloor(0);}
           else if(tab==='Zone'){setZBFloor(0);}
           onRefresh&&onRefresh();
         }}/>
+      {viewModalOpen&&<ViewModal img={viewModalOpen} onClose={()=>setViewModalOpen(null)}/>}
     </div>
   );
 }
@@ -1599,7 +1474,7 @@ function App(){
             <SavingsChart/>
           </React.Fragment>
         </div>
-        <a href="http://demo.ai-hvac001.cn/index.html" target="_blank" rel="noopener noreferrer"
+        <a href="rd/RunDo-ECM-v0.6-2026-03-31.html" target="_blank" rel="noopener noreferrer"
           style={{position:'absolute',top:16,right:16,zIndex:50,width:36,height:36,borderRadius:18,background:'linear-gradient(135deg,rgba(143,231,163,0.12) 0%,rgba(23,204,200,0.12) 100%)',border:'1px solid rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,0.4)',cursor:'pointer',textDecoration:'none',transition:'box-shadow .2s'}}
           onMouseEnter={e=>e.currentTarget.style.boxShadow='0 0 14px rgba(23,204,200,0.5)'}
           onMouseLeave={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,0.4)'}>
