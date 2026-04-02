@@ -1143,7 +1143,7 @@ const VIEW_IMGS={
 /* ══════════════════ BUILDING VIEW ═══════════════════════════════ */
 function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefresh}){
   const [tab,setTab]=useState('Building');
-  const [tabBarVisible,setTabBarVisible]=useState(true);
+  const [tabBarVisible,setTabBarVisible]=useState(false);
   const [bFloor,setBFloor]=useState(0);
   const [bImg,setBImg]=useState('zbuilding3dimg/zbuilding3d-mr.png');
   const [bHover,setBHover]=useState(false);
