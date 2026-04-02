@@ -88,6 +88,12 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pa4{animation:fadeUp .6s cubic-bezier(0.4,0,0.2,1) 2.05s both}
 @keyframes fadeSlideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
 .floor-in{animation:fadeSlideIn .45s cubic-bezier(0.4,0,0.2,1) both}
+@keyframes bearingPulse{0%,100%{opacity:0.5}50%{opacity:1}}
+.bp{animation:bearingPulse 2.2s ease-in-out infinite}
+@keyframes sideBarAnim{0%,100%{opacity:0.7}50%{opacity:1}}
+.sb{animation:sideBarAnim 1.8s ease-in-out infinite}
+@keyframes starRock{0%{transform:rotate(-180deg)}50%{transform:rotate(180deg)}100%{transform:rotate(-180deg)}}
+.star-rock{animation:starRock 3.6s ease-in-out infinite;transform-origin:center}
 
 .badge-green{display:inline-flex;align-items:center;gap:4px;background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.28);border-radius:20px;padding:2px 7px;font-size:11px;font-weight:700;color:var(--green)}
 .dot{width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block}
@@ -463,7 +469,16 @@ function AISuggestionPanel(){
     <div className="pa1">
       {showModal&&ReactDOM.createPortal(<AIDetailModal onClose={()=>setShowModal(false)}/>,document.body)}
       <div style={{height:40,display:'flex',alignItems:'center',gap:8}}>
-        <svg width="14" height="14" fill="none" stroke="var(--primary)" strokeWidth="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <svg width="16" height="16" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="star-rock">
+          {/* top triangle (cyan) */}
+          <polygon points="50,2 90,68 10,68" fill="rgba(0,229,220,0.92)"/>
+          {/* bottom triangle (cyan, rotated 180°) */}
+          <polygon points="50,98 10,32 90,32" fill="rgba(0,200,255,0.85)"/>
+          {/* left triangle (green accent) */}
+          <polygon points="10,68 30,32 50,68" fill="rgba(0,210,120,0.9)"/>
+          {/* right triangle (magenta accent) */}
+          <polygon points="90,68 70,32 50,68" fill="rgba(230,0,200,0.85)"/>
+        </svg>
         <span style={{fontSize:16,fontWeight:600}}>AI Suggestion</span>
       </div>
       <div style={{background:'rgba(19,36,73,0.60)',borderRadius:12,overflow:'hidden'}}>
@@ -1103,7 +1118,7 @@ function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab}){
     setTimeout(()=>setSpinning(false),600);
   }
   return(<>
-    <div style={{position:'absolute',right:20,bottom:156,display:'flex',flexDirection:'column',gap:48,zIndex:10}}>
+    <div style={{position:'absolute',right:20,bottom:156,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
       {/* Refresh button */}
       <button title={`Refresh ${tab||''}`} onClick={handleRefresh}
         style={{...bs,transition:'background .15s',position:'relative'}}
@@ -1125,13 +1140,189 @@ function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab}){
         }
       }} style={{...bs,fontSize:11,fontWeight:500,color:'var(--muted)'}}>全屏</button>
     </div>
-    <div style={{position:'absolute',right:20,bottom:20,display:'flex',flexDirection:'column',gap:48,zIndex:10}}>
+    <div style={{position:'absolute',right:20,bottom:20,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
       <button onClick={onToggle3D} style={{...bs,fontSize:11,fontWeight:700,color:'var(--text)'}}>3D</button>
       <button onClick={onTogglePanel} style={{...bs,opacity:panelVisible?1:0.5}}>
         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
       </button>
     </div>
   </>);
+}
+
+/* ══════════════════ BEARING MONITOR CARDS ══════════════════════ */
+function BearingFrontCard(){
+  const cardStyle={background:'rgba(24,25,31,0.90)',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:6};
+  const balls=[0,1,2,3,4,5,6];
+  return(
+    <div style={cardStyle}>
+      <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.06em',textTransform:'uppercase'}}>Front view</span>
+      <svg width="150" height="96" viewBox="0 0 150 96">
+        <defs>
+          <radialGradient id="redGlw" cx="50%" cy="100%" r="60%">
+            <stop offset="0%" stopColor="#ff3040" stopOpacity="0.95"/>
+            <stop offset="100%" stopColor="#ff3040" stopOpacity="0"/>
+          </radialGradient>
+          <radialGradient id="cardBg" cx="50%" cy="40%" r="70%">
+            <stop offset="0%" stopColor="#2c2f42"/>
+            <stop offset="100%" stopColor="#1c1e2c"/>
+          </radialGradient>
+        </defs>
+        <rect width="150" height="96" rx="6" fill="url(#cardBg)"/>
+        {/* outer arch ring */}
+        <path d="M 12 88 A 63 63 0 0 1 138 88" fill="none" stroke="#3c3f52" strokeWidth="22" strokeLinecap="butt"/>
+        {/* inner shadow */}
+        <path d="M 12 88 A 63 63 0 0 1 138 88" fill="none" stroke="#252838" strokeWidth="8" strokeLinecap="butt"/>
+        {/* red fault glow */}
+        <ellipse cx="75" cy="88" rx="32" ry="16" fill="url(#redGlw)" className="bp"/>
+        {/* balls */}
+        {balls.map(i=>{
+          const a=(180/6)*i;
+          const rad=a*Math.PI/180;
+          const cx=75-63*Math.cos(rad);
+          const cy=88-63*Math.sin(rad);
+          return(
+            <g key={i}>
+              <circle cx={cx} cy={cy} r="9.5" fill="#454760" stroke="#555870" strokeWidth="1.5"/>
+              <circle cx={cx-2.5} cy={cy-2.5} r="3" fill="rgba(255,255,255,0.12)"/>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+function BearingSideCard(){
+  const cardStyle={background:'rgba(24,25,31,0.90)',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:6};
+  const hT=[0.35,0.55,0.28,0.72,0.48,0.62,0.85,0.38,0.58,0.44,0.3,0.66,1.0,0.54,0.38,0.74,0.46,0.32,0.58,0.68,0.42,0.5,0.36,0.6];
+  const hB=hT.map(v=>v*0.8);
+  const anom=12;
+  return(
+    <div style={cardStyle}>
+      <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.06em',textTransform:'uppercase'}}>Side view</span>
+      <svg width="192" height="96" viewBox="0 0 192 96">
+        <defs>
+          <radialGradient id="cardBg2" cx="50%" cy="50%" r="70%">
+            <stop offset="0%" stopColor="#2c2f42"/>
+            <stop offset="100%" stopColor="#1c1e2c"/>
+          </radialGradient>
+        </defs>
+        <rect width="192" height="96" rx="6" fill="url(#cardBg2)"/>
+        {/* top bars */}
+        {hT.map((h,i)=>(
+          <rect key={i} x={4+i*8} y={46-h*38} width="6" height={h*38} rx="1"
+            fill={i===anom?'rgba(255,55,55,0.55)':'rgba(120,130,175,0.32)'}/>
+        ))}
+        {/* bottom bars */}
+        {hB.map((h,i)=>(
+          <rect key={i} x={4+i*8} y={50} width="6" height={h*32} rx="1"
+            fill={i===anom?'rgba(255,55,55,0.4)':'rgba(95,105,145,0.22)'}/>
+        ))}
+        {/* blue center band */}
+        <rect x="3" y="43" width="186" height="10" rx="2" fill="rgba(48,120,255,0.72)" className="sb"/>
+        {/* anomaly red marker */}
+        <rect x={4+anom*8-1} y="41" width="9" height="14" rx="2" fill="rgba(255,50,50,0.92)"/>
+        {/* axis labels */}
+        <text x="4" y="94" fontSize="7" fill="rgba(255,255,255,0.25)">0</text>
+        <text x="88" y="94" fontSize="7" fill="rgba(255,255,255,0.25)">500Hz</text>
+        <text x="170" y="94" fontSize="7" fill="rgba(255,255,255,0.25)">1k</text>
+      </svg>
+    </div>
+  );
+}
+
+function BearingTopCard(){
+  const cs={background:'rgba(24,25,31,0.90)',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:6};
+  const n=12;
+  return(
+    <div style={cs}>
+      <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.06em',textTransform:'uppercase'}}>Top view</span>
+      <svg width="150" height="96" viewBox="0 0 150 96">
+        <defs>
+          <radialGradient id="tbg" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#2c2f42"/><stop offset="100%" stopColor="#1c1e2c"/></radialGradient>
+          <radialGradient id="tglow" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#ff3040" stopOpacity="0.8"/><stop offset="100%" stopColor="#ff3040" stopOpacity="0"/></radialGradient>
+        </defs>
+        <rect width="150" height="96" rx="6" fill="url(#tbg)"/>
+        {/* outer ring */}
+        <circle cx="75" cy="48" r="40" fill="none" stroke="#3c3f52" strokeWidth="14"/>
+        {/* inner ring */}
+        <circle cx="75" cy="48" r="18" fill="#252838" stroke="#3c3f52" strokeWidth="3"/>
+        {/* fault glow */}
+        <circle cx="75" cy="8" r="10" fill="url(#tglow)" className="bp"/>
+        {/* balls */}
+        {[...Array(n)].map((_,i)=>{
+          const a=(360/n)*i*Math.PI/180;
+          return <circle key={i} cx={75+33*Math.sin(a)} cy={48-33*Math.cos(a)} r="6.5" fill={i===0?'#7a3038':'#454760'} stroke={i===0?'#cc4050':'#555870'} strokeWidth="1.5"/>;
+        })}
+      </svg>
+    </div>
+  );
+}
+function BearingWaveCard(){
+  const cs={background:'rgba(24,25,31,0.90)',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:6};
+  const pts=[];
+  for(let i=0;i<=180;i+=3){
+    const x=4+i*(184/180);
+    const noise=(i>90&&i<130)?2.8:0.6;
+    const y=48+Math.sin(i*0.22)*14*noise+Math.sin(i*0.8)*4*noise;
+    pts.push(`${x},${y}`);
+  }
+  return(
+    <div style={cs}>
+      <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.06em',textTransform:'uppercase'}}>Waveform</span>
+      <svg width="192" height="96" viewBox="0 0 192 96">
+        <defs><radialGradient id="wbg" cx="50%" cy="50%" r="70%"><stop offset="0%" stopColor="#2c2f42"/><stop offset="100%" stopColor="#1c1e2c"/></radialGradient></defs>
+        <rect width="192" height="96" rx="6" fill="url(#wbg)"/>
+        {/* grid lines */}
+        {[24,48,72].map(y=><line key={y} x1="4" y1={y} x2="188" y2={y} stroke="rgba(255,255,255,0.06)" strokeWidth="0.5"/>)}
+        {/* center axis */}
+        <line x1="4" y1="48" x2="188" y2="48" stroke="rgba(255,255,255,0.12)" strokeWidth="0.8"/>
+        {/* waveform */}
+        <polyline points={pts.join(' ')} fill="none" stroke="rgba(48,160,255,0.85)" strokeWidth="1.5" strokeLinejoin="round"/>
+        {/* anomaly highlight zone */}
+        <rect x="94" y="12" width="40" height="72" rx="2" fill="rgba(255,50,50,0.08)"/>
+        <line x1="94" y1="12" x2="94" y2="84" stroke="rgba(255,80,80,0.4)" strokeWidth="0.8" strokeDasharray="3 2"/>
+        <line x1="134" y1="12" x2="134" y2="84" stroke="rgba(255,80,80,0.4)" strokeWidth="0.8" strokeDasharray="3 2"/>
+        <text x="4" y="92" fontSize="7" fill="rgba(255,255,255,0.25)">0ms</text>
+        <text x="84" y="92" fontSize="7" fill="rgba(255,255,255,0.25)">50ms</text>
+        <text x="170" y="92" fontSize="7" fill="rgba(255,255,255,0.25)">100ms</text>
+      </svg>
+    </div>
+  );
+}
+function BearingTempCard(){
+  const cs={background:'rgba(24,25,31,0.90)',borderRadius:10,border:'1px solid rgba(255,255,255,0.08)',backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',padding:'10px 14px',display:'flex',flexDirection:'column',gap:6};
+  const temp=74; const max=120; const pct=temp/max;
+  const arcLen=220; const used=arcLen*pct;
+  const r=36; const cx=75; const cy=72;
+  function arc(start,end,radius){
+    const s=start*Math.PI/180; const e=end*Math.PI/180;
+    return `M ${cx+radius*Math.cos(s)} ${cy+radius*Math.sin(s)} A ${radius} ${radius} 0 0 1 ${cx+radius*Math.cos(e)} ${cy+radius*Math.sin(e)}`;
+  }
+  return(
+    <div style={cs}>
+      <span style={{fontSize:11,fontWeight:600,color:'rgba(255,255,255,0.45)',letterSpacing:'0.06em',textTransform:'uppercase'}}>Temperature</span>
+      <svg width="150" height="96" viewBox="0 0 150 96">
+        <defs>
+          <linearGradient id="tgrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#3080ff"/><stop offset="60%" stopColor="#f0a030"/><stop offset="100%" stopColor="#ff3040"/>
+          </linearGradient>
+          <radialGradient id="tempbg" cx="50%" cy="50%" r="70%"><stop offset="0%" stopColor="#2c2f42"/><stop offset="100%" stopColor="#1c1e2c"/></radialGradient>
+        </defs>
+        <rect width="150" height="96" rx="6" fill="url(#tempbg)"/>
+        {/* track */}
+        <path d={arc(200,360+20,r)} fill="none" stroke="#2e3145" strokeWidth="9" strokeLinecap="round"/>
+        {/* value arc */}
+        <path d={arc(200,200+220*pct,r)} fill="none" stroke="url(#tgrad)" strokeWidth="9" strokeLinecap="round"/>
+        {/* needle */}
+        {(()=>{const a=(200+220*pct)*Math.PI/180;return <line x1={cx} y1={cy} x2={cx+28*Math.cos(a)} y2={cy+28*Math.sin(a)} stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" strokeLinecap="round"/>;})()}
+        <circle cx={cx} cy={cy} r="4" fill="#454760" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5"/>
+        <text x={cx} y={cy-10} textAnchor="middle" fontSize="14" fontWeight="700" fill="#fff">{temp}°</text>
+        <text x={cx} y={cy+4} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.35)">/ {max}°C</text>
+        <text x="14" y="90" fontSize="7" fill="rgba(255,255,255,0.25)">0°C</text>
+        <text x="108" y="90" fontSize="7" fill="rgba(255,255,255,0.25)">{max}°C</text>
+      </svg>
+    </div>
+  );
 }
 
 /* ══════════════════ CITY VIEW IMAGES ═══════════════════════════ */
@@ -1142,7 +1333,7 @@ const VIEW_IMGS={
 
 /* ══════════════════ BUILDING VIEW ═══════════════════════════════ */
 function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefresh}){
-  const [tab,setTab]=useState('Building');
+  const [tab,setTab]=useState('Campus');
   const [tabBarVisible,setTabBarVisible]=useState(false);
   const [bFloor,setBFloor]=useState(0);
   const [bImg,setBImg]=useState('zbuilding3dimg/zbuilding3d-mr.png');
@@ -1192,7 +1383,17 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
       ):(
         <div style={{position:'absolute',inset:0}}>
           {tab==='Campus'?(
-            <video key="city-video" src="city-view.mp4" autoPlay loop muted playsInline style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
+            <>
+              <video key="city-video" src="city-view.mp4" autoPlay loop muted playsInline
+                style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
+              {/* 红框热区：点击进入 Building */}
+              <div onClick={()=>setTab('Building')} title="进入 Building 视图"
+                style={{position:'absolute',left:'23%',top:'16%',width:'59%',height:'65%',zIndex:5,cursor:'pointer',
+                  borderRadius:8,
+                  transition:'background .2s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}/>
+            </>
           ):(
             <img src={tab==='Building'?bImg:tab==='Zone'?zBImg:VIEW_IMGS[tab]} alt={tab} style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
           )}
@@ -1203,8 +1404,8 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
               style={{position:'absolute',top:'22.13%',left:'53.28%',background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',borderRadius:100,padding:'11px 29px',width:227,height:41,fontSize:16,fontWeight:500,color:'#fff',whiteSpace:'nowrap',zIndex:10,letterSpacing:'0.01em',cursor:'pointer',textDecoration:'none',display:'flex',alignItems:'center',justifyContent:'center'}}>
               Main Hospital Building
             </a>
-            <div style={{position:'absolute',left:'calc(53.28% + 113px)',top:'calc(22.13% + 41px)',width:1,height:54,background:'rgba(255,255,255,0.45)',zIndex:9}}/>
-            <div style={{position:'absolute',left:'calc(53.28% + 108px)',top:'calc(22.13% + 93px)',width:10,height:10,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.65)',background:'rgba(24,25,31,0.5)',zIndex:9}}/>
+            <div style={{position:'absolute',left:'calc(53.28% + 113px)',top:'calc(22.13% + 41px)',width:1,height:'calc(16.87% - 46px)',background:'rgba(255,255,255,0.45)',zIndex:9}}/>
+            <div style={{position:'absolute',left:'calc(53.28% + 108px)',top:'calc(39% - 5px)',width:10,height:10,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.65)',background:'rgba(24,25,31,0.5)',zIndex:9}}/>
 
             {/* ── Floor selector: 7F–1F ── */}
             <div style={{position:'absolute',left:panelVisible?420:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,width:36,transition:'left 0.4s cubic-bezier(0.4,0,0.2,1)'}}>
@@ -1269,15 +1470,24 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
               Main Hospital Building
             </a>
             {/* vertical line below label */}
-            <div style={{position:'absolute',left:'calc(53.28% + 113px)',top:'calc(22.13% + 41px)',width:1,height:54,background:'rgba(255,255,255,0.45)',zIndex:9}}/>
+            <div style={{position:'absolute',left:'calc(53.28% + 113px)',top:'calc(22.13% + 41px)',width:1,height:'calc(16.87% - 46px)',background:'rgba(255,255,255,0.45)',zIndex:9}}/>
             {/* dot at bottom of line */}
-            <div style={{position:'absolute',left:'calc(53.28% + 108px)',top:'calc(22.13% + 93px)',width:10,height:10,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.65)',background:'rgba(24,25,31,0.5)',zIndex:9}}/>
+            <div style={{position:'absolute',left:'calc(53.28% + 108px)',top:'calc(39% - 5px)',width:10,height:10,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.65)',background:'rgba(24,25,31,0.5)',zIndex:9}}/>
 
             {/* ── Floor selector ── */}
             <div style={{position:'absolute',left:panelVisible?420:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,width:36,transition:'left 0.4s cubic-bezier(0.4,0,0.2,1)'}}>
               {[7,6,5,4,3,2,1].map((f,i)=>(
                 <button key={f} onClick={()=>setBFloor(f)} className="floor-in" style={{animationDelay:`${i*60}ms`,background:bFloor===f?'#18191f':'none',border:'none',cursor:'pointer',fontSize:16,fontWeight:bFloor===f?700:400,color:bFloor===f?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'background .15s, color .15s, font-weight .15s'}}>{f}F</button>
               ))}
+            </div>
+
+            {/* ── Bearing Monitor ── */}
+            <div style={{position:'absolute',bottom:20,left:panelVisible?440:30,display:'flex',gap:12,zIndex:10}}>
+              <BearingFrontCard/>
+              <BearingSideCard/>
+              <BearingTopCard/>
+              <BearingWaveCard/>
+              <BearingTempCard/>
             </div>
 
             {bFloor>0&&(()=>{
