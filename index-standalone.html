@@ -1302,7 +1302,7 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
         <div style={{position:'absolute',inset:0}}>
           {tab==='Campus'?(
             <>
-              <video key="city-video" src="city-view.mp4" autoPlay loop muted playsInline
+              <video key="city-video" src="city-view.mp4" poster="city-overview.png" autoPlay loop muted playsInline preload="auto"
                 style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
               {/* 红框热区：点击进入 Building */}
               <div onClick={()=>{setTab('Building');setBearingVisible(false);onRefresh&&onRefresh();}} title="Enter Building View"
@@ -1445,10 +1445,10 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
 /* ══════════════════ INTRO SCREEN ════════════════════════════════ */
 function IntroScreen({onDone}){
   const [fading,setFading]=useState(false);
-  function dismiss(){setFading(true);setTimeout(onDone,600);}
+  function dismiss(){setFading(true);setTimeout(onDone,900);}
   useEffect(()=>{const t=setTimeout(dismiss,8000);return()=>clearTimeout(t);},[]);
   return(
-    <div style={{position:'fixed',inset:0,zIndex:1000,background:'#000',opacity:fading?0:1,transition:'opacity .6s ease',pointerEvents:fading?'none':'auto'}}>
+    <div style={{position:'fixed',inset:0,zIndex:1000,background:'#000',opacity:fading?0:1,transition:'opacity .9s ease',pointerEvents:fading?'none':'auto'}}>
       <video src="city-view.mp4" poster="city-overview.png" autoPlay muted playsInline preload="auto" onEnded={dismiss}
         style={{width:'100%',height:'100%',objectFit:'cover'}}/>
       <button onClick={dismiss} style={{position:'absolute',bottom:32,right:32,padding:'8px 24px',borderRadius:20,background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.28)',color:'#fff',fontSize:13,fontWeight:500,cursor:'pointer',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',letterSpacing:'0.02em',transition:'background .2s'}}
