@@ -102,7 +102,8 @@ function tower(cx,cy,n){
     fill="rgba(160,200,255,.04)" stroke="rgba(120,170,220,.32)" stroke-width="1.2"/>
   <line x1="${cx-16}" y1="${top+9}"  x2="${cx+16}" y2="${top+9}"  stroke="rgba(120,170,220,.28)" stroke-width="1"/>
   <line x1="${cx-12}" y1="${top+17}" x2="${cx+12}" y2="${top+17}" stroke="rgba(120,170,220,.18)" stroke-width="1"/>
-  ${lbl(cx, top-6, `CT-${n}`, 'rgba(255,255,255,.52)', 8.5)}`;
+  ${lbl(cx, top-6, `CT-${n}`, 'rgba(255,255,255,.52)', 8.5)}
+  ${rem(cx, bot+13)}`;
 }
 
 function chiller(id,brand,pct,kw,y){
@@ -171,8 +172,6 @@ function build(){
     s+=`<line class="cw-sup" x1="${TW_CX+42}" y1="${cy-5}" x2="${RAIL_X}"    y2="${cy-5}" style="animation-delay:${i*.1}s"/>`;
     s+=`<line class="cw-ret" x1="${TW_CX+42}" y1="${cy+5}" x2="${RAIL_X+14}" y2="${cy+5}" style="animation-delay:${i*.1+.4}s"/>`;
   });
-  // single 远程 for all towers
-  s+=rem(TW_CX, HDR_BOT+18);
 
   // ── 分水器 ────────────────────────────────────────────────────
   const DT=68, DB=220;
