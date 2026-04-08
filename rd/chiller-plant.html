@@ -6,296 +6,274 @@
 <title>冷冻机房监控</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
-html, body {
-  background:#09111f;
-  width:100%; height:100%;
-  overflow:hidden; user-select:none;
-  font-family:-apple-system,'SF Pro Display','Helvetica Neue',sans-serif;
-}
-@keyframes fadeIn { from{opacity:0;transform:scale(.98)} to{opacity:1;transform:scale(1)} }
-#app { width:100vw; height:100vh; display:block; animation:fadeIn .6s ease both; }
-#app svg { width:100%; height:100%; display:block; }
+html, body { width:100%; height:100%; overflow:hidden; background:#09111f; }
+#app { width:100vw; height:100vh; }
+svg { width:100%; height:100%; display:block; }
 
-@keyframes dashF  { to { stroke-dashoffset: -24 } }
-@keyframes dashR  { to { stroke-dashoffset:  24 } }
-@keyframes dashFS { to { stroke-dashoffset: -18 } }
-@keyframes dashRS { to { stroke-dashoffset:  18 } }
-@keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:.35} }
+@keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+@keyframes dashF   { to { stroke-dashoffset:-24 } }
+@keyframes dashR   { to { stroke-dashoffset: 24 } }
+@keyframes dashRS  { to { stroke-dashoffset: 18 } }
+@keyframes dashFS  { to { stroke-dashoffset:-18 } }
+@keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.3} }
 @keyframes fanSpin { to { transform:rotate(360deg) } }
 
-.cw-sup  { stroke:#f0a020; stroke-width:2; stroke-dasharray:7 5; fill:none; animation:dashF  .85s linear infinite; }
-.cw-ret  { stroke:#d84030; stroke-width:2; stroke-dasharray:7 5; fill:none; animation:dashR  .85s linear infinite; }
-.chw-sup { stroke:#4ab8ff; stroke-width:2; stroke-dasharray:7 5; fill:none; animation:dashF  .85s linear infinite; }
-.chw-ret { stroke:#00c896; stroke-width:2; stroke-dasharray:7 5; fill:none; animation:dashRS .85s linear infinite; }
-.bypass  { stroke:#8890aa; stroke-width:2; stroke-dasharray:5 4; fill:none; animation:dashFS 1.2s linear infinite; }
-
+svg { animation:fadeIn .5s ease both; }
+.cw-sup  { stroke:#f0a020; stroke-width:2;   stroke-dasharray:7 5; fill:none; animation:dashF  .85s linear infinite; }
+.cw-ret  { stroke:#d84030; stroke-width:2;   stroke-dasharray:7 5; fill:none; animation:dashR  .85s linear infinite; }
+.chw-sup { stroke:#4ab8ff; stroke-width:2;   stroke-dasharray:7 5; fill:none; animation:dashF  .85s linear infinite; }
+.chw-ret { stroke:#00c896; stroke-width:2;   stroke-dasharray:7 5; fill:none; animation:dashRS .85s linear infinite; }
+.bypass  { stroke:#8890aa; stroke-width:1.8; stroke-dasharray:5 4; fill:none; animation:dashFS 1.2s linear infinite; }
 .cw-sup-hdr  { stroke:#f0a020; stroke-width:2.5; fill:none; opacity:.7; }
 .cw-ret-hdr  { stroke:#d84030; stroke-width:2.5; fill:none; opacity:.7; }
 .chw-sup-hdr { stroke:#4ab8ff; stroke-width:2.5; fill:none; opacity:.7; }
 .chw-ret-hdr { stroke:#00c896; stroke-width:2.5; fill:none; opacity:.7; }
-
 .pump-fan { animation:fanSpin 1.2s linear infinite; }
-.run-dot  { animation:pulse 2.2s ease-in-out infinite; }
+.run-dot  { animation:pulse  2.2s ease-in-out infinite; }
 </style>
 </head>
-<body>
-<div id="app"></div>
+<body><div id="app"></div>
 <script>
-// ── DATA ──────────────────────────────────────────
+// ── LAYOUT CONSTANTS ─────────────────────────────────────────────
+const W = 1260, H = 660;
+
+// 4 chiller rows — evenly distributed, 140px row pitch
 const ROWS = [
-  { id:1, brand:'特灵', cwHz:'46.0', chwHz:'45.0', pct:'78', kw:'125', y:168 },
-  { id:2, brand:'特灵', cwHz:'44.0', chwHz:'43.0', pct:'72', kw:'118', y:312 },
-  { id:3, brand:'格力', cwHz:'42.0', chwHz:'41.0', pct:'65', kw:'105', y:456 },
-  { id:4, brand:'格力', cwHz:'38.0', chwHz:'36.0', pct:'55', kw:'88',  y:600 },
+  { id:1, brand:'特灵', cwHz:'46.0', chwHz:'45.0', pct:'78', kw:'125', y:138 },
+  { id:2, brand:'特灵', cwHz:'44.0', chwHz:'43.0', pct:'72', kw:'118', y:278 },
+  { id:3, brand:'格力', cwHz:'42.0', chwHz:'41.0', pct:'65', kw:'105', y:418 },
+  { id:4, brand:'格力', cwHz:'38.0', chwHz:'36.0', pct:'55', kw:'88',  y:558 },
 ];
 
-// 8 cooling towers evenly across row span
-const TOWER_CY = [120, 177, 234, 292, 364, 422, 480, 538];
+// pipe Y offsets from row centre
+const SUP_DY = -15, RET_DY = +15;
+const HDR_TOP = ROWS[0].y + SUP_DY - 4;   // ≈119
+const HDR_BOT = ROWS[3].y + RET_DY + 4;   // ≈577
 
-// ── X POSITIONS (viewBox 1320 wide) ──────────────
-const CW_SUP_X  = 218;
-const CW_RET_X  = 236;
-const CW_PUMP_X = 306;
-const CW_VLV_X  = 412;
-const CH_LEFT   = 455;
-const CH_RIGHT  = 750;
-const CHW_VLV_X = 800;
-const CHW_PUMP_X= 908;
-const CHW_SUP_X = 992;
-const CHW_RET_X = 1010;
-const DIST_X    = 1060;
-const DIST_W    = 72;
+// 8 cooling towers — evenly distributed over [HDR_TOP, HDR_BOT]
+const step = (HDR_BOT - HDR_TOP) / 7;     // ≈65.4 px
+const TOWER_CY = Array.from({length:8}, (_,i) => Math.round(HDR_TOP + i * step));
+// → [119, 184, 250, 315, 381, 446, 512, 577]
 
-// Y offsets (supply above center, return below)
-const SUP_DY = -16;
-const RET_DY = +16;
+// X positions
+const TW_CX     = 84;    // tower centre x
+const TW_CONN   = 148;   // tower right connection rail x
+const CW_SUP_X  = 196;
+const CW_RET_X  = 213;
+const CW_PUMP_X = 290;
+const CW_VLV_X  = 396;
+const CH_LEFT   = 438;
+const CH_RIGHT  = 746;
+const CHW_VLV_X = 796;
+const CHW_PUMP_X= 904;
+const CHW_SUP_X = 988;
+const CHW_RET_X = 1005;
+const DIST_X    = 1054;
+const DIST_W    = 70;
 
-const HDR_TOP = ROWS[0].y + SUP_DY - 4;
-const HDR_BOT = ROWS[3].y + RET_DY + 4;
+// ── HELPERS ──────────────────────────────────────────────────────
+const lbl = (x,y,t,c='rgba(255,255,255,.44)',sz=9.5,a='middle',x2='')=>
+  `<text x="${x}" y="${y}" fill="${c}" font-size="${sz}" text-anchor="${a}" font-family="-apple-system,sans-serif" ${x2}>${t}</text>`;
+const rem = (x,y)=> lbl(x,y,'远程','#00c896',8.5,'middle','letter-spacing="0.5"');
 
-// ── HELPERS ───────────────────────────────────────
-function label(x, y, txt, color='rgba(255,255,255,.42)', size=9.5, anchor='middle', extra='') {
-  return `<text x="${x}" y="${y}" fill="${color}" font-size="${size}" text-anchor="${anchor}" font-family="-apple-system,sans-serif" ${extra}>${txt}</text>`;
-}
-function remoteLabel(x, y) {
-  return label(x, y, '远程', '#00c896', 8.5, 'middle', 'letter-spacing="0.5"');
-}
-
-function pump(cx, cy, hz, pumpId, color) {
-  const r = 22;
-  let s = '';
-  s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(255,255,255,.04)" stroke="${color}" stroke-width="1.8"/>`;
-  s += `<g class="pump-fan" style="transform-origin:${cx}px ${cy}px">`;
-  s += `<line x1="${cx}" y1="${cy-14}" x2="${cx}" y2="${cy+14}" stroke="${color}" stroke-width="1.7" stroke-linecap="round"/>`;
-  s += `<line x1="${cx-14}" y1="${cy}" x2="${cx+14}" y2="${cy}" stroke="${color}" stroke-width="1.7" stroke-linecap="round"/>`;
-  s += `<line x1="${cx-10}" y1="${cy-10}" x2="${cx+10}" y2="${cy+10}" stroke="${color}" stroke-width="1.7" stroke-linecap="round"/>`;
-  s += `<line x1="${cx+10}" y1="${cy-10}" x2="${cx-10}" y2="${cy+10}" stroke="${color}" stroke-width="1.7" stroke-linecap="round"/>`;
-  s += `</g>`;
-  // Hz label below pump
-  s += label(cx, cy + r + 14, `${hz} Hz`, color, 9.5, 'middle', 'font-weight="600"');
-  return s;
+function pump(cx,cy,hz,pid,col){
+  const r=21;
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(255,255,255,.04)" stroke="${col}" stroke-width="1.8"/>
+<g class="pump-fan" style="transform-origin:${cx}px ${cy}px">
+  <line x1="${cx}" y1="${cy-13}" x2="${cx}" y2="${cy+13}" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="${cx-13}" y1="${cy}" x2="${cx+13}" y2="${cy}" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="${cx-9}" y1="${cy-9}" x2="${cx+9}" y2="${cy+9}" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="${cx+9}" y1="${cy-9}" x2="${cx-9}" y2="${cy+9}" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>
+</g>
+${lbl(cx, cy+r+13, `${hz} Hz`, col, 9.5, 'middle', 'font-weight="600"')}`;
 }
 
-function valve(cx, cy, color, size=11) {
-  const d = size;
-  return `<line x1="${cx-d}" y1="${cy-d}" x2="${cx+d}" y2="${cy+d}" stroke="${color}" stroke-width="2.2" stroke-linecap="round"/>
-<line x1="${cx+d}" y1="${cy-d}" x2="${cx-d}" y2="${cy+d}" stroke="${color}" stroke-width="2.2" stroke-linecap="round"/>`;
+function valve(cx,cy,col,d=11){
+  return `<line x1="${cx-d}" y1="${cy-d}" x2="${cx+d}" y2="${cy+d}" stroke="${col}" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="${cx+d}" y1="${cy-d}" x2="${cx-d}" y2="${cy+d}" stroke="${col}" stroke-width="2.2" stroke-linecap="round"/>`;
 }
 
-function coolingTower(cx, cy, n) {
-  const TW=90, TH=44, TWT=66;
-  const lb=cx-TW/2, rb=cx+TW/2, lt=cx-TWT/2, rt=cx+TWT/2;
-  const top=cy-TH/2, bot=cy+TH/2;
-  let s='';
-  s += `<polygon points="${lt},${top} ${rt},${top} ${rb},${bot} ${lb},${bot}" fill="rgba(160,200,255,.04)" stroke="rgba(120,170,220,.35)" stroke-width="1.2"/>`;
-  s += `<line x1="${cx-18}" y1="${top+10}" x2="${cx+18}" y2="${top+10}" stroke="rgba(120,170,220,.28)" stroke-width="1"/>`;
-  s += `<line x1="${cx-14}" y1="${top+18}" x2="${cx+14}" y2="${top+18}" stroke="rgba(120,170,220,.18)" stroke-width="1"/>`;
-  s += label(cx, top-7, `${n}#冷却塔`, 'rgba(255,255,255,.48)', 8.5, 'middle');
-  return s;
+function tower(cx,cy,n){
+  const TW=84,TH=40,TWT=62;
+  const lb=cx-TW/2,rb=cx+TW/2,lt=cx-TWT/2,rt=cx+TWT/2;
+  const top=cy-TH/2,bot=cy+TH/2;
+  return `<polygon points="${lt},${top} ${rt},${top} ${rb},${bot} ${lb},${bot}"
+    fill="rgba(160,200,255,.04)" stroke="rgba(120,170,220,.32)" stroke-width="1.2"/>
+  <line x1="${cx-16}" y1="${top+9}"  x2="${cx+16}" y2="${top+9}"  stroke="rgba(120,170,220,.28)" stroke-width="1"/>
+  <line x1="${cx-12}" y1="${top+17}" x2="${cx+12}" y2="${top+17}" stroke="rgba(120,170,220,.18)" stroke-width="1"/>
+  ${lbl(cx, top-6, `${n}#冷却塔`, 'rgba(255,255,255,.52)', 8.5)}`;
 }
 
-function chiller(id, brand, pct, kw, y) {
-  const w = CH_RIGHT - CH_LEFT, h = 64, ry = y - h/2;
-  let s = '';
-  s += `<rect x="${CH_LEFT}" y="${ry}" width="${w}" height="${h}" rx="6" fill="rgba(30,50,90,.5)" stroke="rgba(100,160,255,.25)" stroke-width="1.5"/>`;
-  s += `<circle cx="${CH_LEFT+14}" cy="${ry+14}" r="4.5" fill="#00e090" class="run-dot" style="filter:drop-shadow(0 0 4px #00e090)"/>`;
-  s += label(CH_LEFT+w/2, ry+24, `${id}#主机（${brand}）`, 'rgba(255,255,255,.78)', 13, 'middle', 'font-weight="600"');
-  s += label(CH_LEFT+w/2-30, ry+47, `${pct}%`, '#00c896', 12, 'middle', 'font-weight="700"');
-  s += label(CH_LEFT+w/2+24, ry+47, `${kw} kW`, 'rgba(255,255,255,.5)', 11, 'middle');
-  s += remoteLabel(CH_LEFT+w-26, ry+14);
-  return s;
+function chiller(id,brand,pct,kw,y){
+  const w=CH_RIGHT-CH_LEFT,h=62,ry=y-h/2;
+  return `<rect x="${CH_LEFT}" y="${ry}" width="${w}" height="${h}" rx="6"
+    fill="rgba(30,50,90,.52)" stroke="rgba(100,160,255,.26)" stroke-width="1.5"/>
+  <circle cx="${CH_LEFT+13}" cy="${ry+13}" r="4" fill="#00e090" class="run-dot"
+    style="filter:drop-shadow(0 0 4px #00e090)"/>
+  ${lbl(CH_LEFT+w/2, ry+23, `${id}#主机（${brand}）`, 'rgba(255,255,255,.8)', 12.5, 'middle', 'font-weight="600"')}
+  ${lbl(CH_LEFT+w/2-28, ry+45, `${pct}%`, '#00c896', 12, 'middle', 'font-weight="700"')}
+  ${lbl(CH_LEFT+w/2+22, ry+45, `${kw} kW`, 'rgba(255,255,255,.5)', 10.5, 'middle')}
+  ${rem(CH_LEFT+w-24, ry+13)}`;
 }
 
-function tempDot(x, y, val, color, anchor='middle') {
-  let s = `<circle cx="${x}" cy="${y}" r="3.5" fill="${color}" opacity=".85"/>`;
-  s += label(x, y-8, val, color, 9.5, anchor, 'font-weight="500"');
-  return s;
+function cylinder(x,y,w,h,col,name){
+  const rx=w/2,ry=11,cx=x+rx;
+  const rgb=col.slice(1).match(/.{2}/g).map(v=>parseInt(v,16)).join(',');
+  return `<rect x="${x}" y="${y+ry}" width="${w}" height="${h-ry*2}"
+    fill="rgba(${rgb},.06)" stroke="${col}" stroke-width="1.4" opacity=".8"/>
+  <ellipse cx="${cx}" cy="${y+ry}" rx="${rx}" ry="${ry}"
+    fill="rgba(${rgb},.12)" stroke="${col}" stroke-width="1.4" opacity=".8"/>
+  <ellipse cx="${cx}" cy="${y+h-ry}" rx="${rx}" ry="${ry}"
+    fill="rgba(${rgb},.06)" stroke="${col}" stroke-width="1.4" opacity=".6"/>
+  ${[0,1,2,3].map(i=>{
+    const dy=y+ry*2+i*(h-ry*4)/3;
+    return `<circle cx="${x}" cy="${dy}" r="3" fill="${col}" opacity=".55"/>`;
+  }).join('')}
+  ${lbl(cx, y+h/2+5, name, col, 12, 'middle', 'font-weight="700" letter-spacing="2"')}`;
 }
 
-function drawCylinder(x, y, w, h, color, name) {
-  const ry=11, cx=x+w/2;
-  let s='';
-  s += `<rect x="${x}" y="${y+ry}" width="${w}" height="${h-ry*2}" fill="rgba(${hexRGB(color)},.06)" stroke="${color}" stroke-width="1.4" opacity=".8"/>`;
-  s += `<ellipse cx="${cx}" cy="${y+ry}" rx="${w/2}" ry="${ry}" fill="rgba(${hexRGB(color)},.12)" stroke="${color}" stroke-width="1.4" opacity=".8"/>`;
-  s += `<ellipse cx="${cx}" cy="${y+h-ry}" rx="${w/2}" ry="${ry}" fill="rgba(${hexRGB(color)},.06)" stroke="${color}" stroke-width="1.4" opacity=".6"/>`;
-  const sp=(h-ry*4)/3;
-  for(let i=0;i<4;i++){
-    const dy=y+ry*2+i*sp;
-    s += `<circle cx="${x}" cy="${dy}" r="3" fill="${color}" opacity=".55"/>`;
-  }
-  s += label(cx, y+h/2+5, name, color, 12, 'middle', 'font-weight="700" letter-spacing="2"');
-  return s;
+function tempDot(x,y,val,col,anchor='start'){
+  return `<circle cx="${x}" cy="${y}" r="3.5" fill="${col}" opacity=".9"/>
+  ${lbl(x+(anchor==='start'?8:-8), y+4, val, col, 9.5, anchor, 'font-weight="500"')}`;
 }
 
-function hexRGB(hex) {
-  return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;
-}
-
-// ── MAIN BUILD ────────────────────────────────────
-function buildSVG() {
-  const W=1320, H=700;
-  let s=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">`;
+// ── BUILD ─────────────────────────────────────────────────────────
+function build(){
+  let s=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"
+    xmlns="http://www.w3.org/2000/svg">`;
   s+=`<rect width="${W}" height="${H}" fill="#09111f"/>`;
 
   // subtle grid
-  for(let x=0;x<W;x+=40) s+=`<line x1="${x}" y1="0" x2="${x}" y2="${H}" stroke="rgba(255,255,255,.018)"/>`;
-  for(let y=0;y<H;y+=40) s+=`<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="rgba(255,255,255,.018)"/>`;
+  for(let x=0;x<W;x+=40) s+=`<line x1="${x}" y1="0" x2="${x}" y2="${H}" stroke="rgba(255,255,255,.016)"/>`;
+  for(let y=0;y<H;y+=40) s+=`<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="rgba(255,255,255,.016)"/>`;
 
-  // ── Vertical header pipes ─────────────────────
+  // ── vertical header pipes ────────────────────────────────────
   s+=`<line class="cw-sup-hdr"  x1="${CW_SUP_X}"  y1="${HDR_TOP}" x2="${CW_SUP_X}"  y2="${HDR_BOT}"/>`;
   s+=`<line class="cw-ret-hdr"  x1="${CW_RET_X}"  y1="${HDR_TOP}" x2="${CW_RET_X}"  y2="${HDR_BOT}"/>`;
   s+=`<line class="chw-sup-hdr" x1="${CHW_SUP_X}" y1="${HDR_TOP}" x2="${CHW_SUP_X}" y2="${HDR_BOT}"/>`;
   s+=`<line class="chw-ret-hdr" x1="${CHW_RET_X}" y1="${HDR_TOP}" x2="${CHW_RET_X}" y2="${HDR_BOT}"/>`;
 
-  // CW header → tower top horizontal run
-  const TW_RIGHT=162;
-  s+=`<line class="cw-sup" x1="${TW_RIGHT}" y1="${HDR_TOP-8}"  x2="${CW_SUP_X}" y2="${HDR_TOP-8}"/>`;
-  s+=`<line class="cw-ret" x1="${TW_RIGHT}" y1="${HDR_TOP+8}"  x2="${CW_RET_X}" y2="${HDR_TOP+8}"/>`;
-  s+=`<line class="cw-sup" x1="${TW_RIGHT}" y1="${HDR_BOT+8}"  x2="${CW_SUP_X}" y2="${HDR_BOT+8}"/>`;
-  s+=`<line class="cw-ret" x1="${TW_RIGHT}" y1="${HDR_BOT+20}" x2="${CW_RET_X}" y2="${HDR_BOT+20}"/>`;
+  // ── tower vertical rail (connects all 8 towers to CW headers) ─
+  const RAIL_X = TW_CONN;
+  s+=`<line class="cw-sup" x1="${RAIL_X}" y1="${HDR_TOP}" x2="${RAIL_X}" y2="${HDR_BOT}"/>`;
+  s+=`<line class="cw-ret" x1="${RAIL_X+14}" y1="${HDR_TOP}" x2="${RAIL_X+14}" y2="${HDR_BOT}"/>`;
+  // connect rails to main headers
+  s+=`<line class="cw-sup" x1="${RAIL_X}"    y1="${HDR_TOP}" x2="${CW_SUP_X}" y2="${HDR_TOP}"/>`;
+  s+=`<line class="cw-ret" x1="${RAIL_X+14}" y1="${HDR_TOP}" x2="${CW_RET_X}" y2="${HDR_TOP}"/>`;
+  s+=`<line class="cw-sup" x1="${RAIL_X}"    y1="${HDR_BOT}" x2="${CW_SUP_X}" y2="${HDR_BOT}"/>`;
+  s+=`<line class="cw-ret" x1="${RAIL_X+14}" y1="${HDR_BOT}" x2="${CW_RET_X}" y2="${HDR_BOT}"/>`;
 
-  // Tower vertical spine
-  s+=`<line class="cw-sup" x1="${TW_RIGHT}" y1="${HDR_TOP-8}" x2="${TW_RIGHT}" y2="${HDR_BOT+8}"  stroke-dasharray="none"/>`;
-  s+=`<line class="cw-ret" x1="${TW_RIGHT}" y1="${HDR_TOP+8}" x2="${TW_RIGHT}" y2="${HDR_BOT+20}" stroke-dasharray="none"/>`;
+  // ── cooling towers ────────────────────────────────────────────
+  TOWER_CY.forEach((cy,i)=>{
+    s+=tower(TW_CX, cy, i+1);
+    // connect tower to rails
+    s+=`<line class="cw-sup" x1="${TW_CX+42}" y1="${cy-5}" x2="${RAIL_X}"    y2="${cy-5}" style="animation-delay:${i*.1}s"/>`;
+    s+=`<line class="cw-ret" x1="${TW_CX+42}" y1="${cy+5}" x2="${RAIL_X+14}" y2="${cy+5}" style="animation-delay:${i*.1+.4}s"/>`;
+  });
+  // single 远程 for all towers
+  s+=rem(TW_CX, HDR_BOT+18);
 
-  // ── Cooling towers ────────────────────────────
-  for(let i=0;i<8;i++){
-    const tcy=TOWER_CY[i];
-    s+=coolingTower(86, tcy, i+1);
-    const py=tcy;
-    s+=`<line class="cw-sup" x1="131" y1="${py-7}" x2="${TW_RIGHT}" y2="${py-7}" style="animation-delay:${i*0.1}s"/>`;
-    s+=`<line class="cw-ret" x1="131" y1="${py+7}" x2="${TW_RIGHT}" y2="${py+7}" style="animation-delay:${i*0.1+0.4}s"/>`;
-  }
-  // single 远程 label for towers group
-  s+=label(86, HDR_BOT+32, '远程', '#00c896', 8.5, 'middle', 'letter-spacing="0.5"');
-
-  // ── 分水器 ────────────────────────────────────
-  const DT=78, DB=238;
-  s+=drawCylinder(DIST_X, DT, DIST_W, DB-DT, '#4ab8ff', '分水器');
-  s+=label(DIST_X+DIST_W+6, DT+18, '1.0 KPa', 'rgba(255,255,255,.45)', 9, 'start');
-  s+=label(DIST_X+DIST_W+6, DT+33, '7.0°C',   '#4ab8ff', 10, 'start', 'font-weight="600"');
+  // ── 分水器 ────────────────────────────────────────────────────
+  const DT=68, DB=220;
+  s+=cylinder(DIST_X, DT, DIST_W, DB-DT, '#4ab8ff', '分水器');
+  s+=lbl(DIST_X+DIST_W+6, DT+18, '1.0 KPa', 'rgba(255,255,255,.45)', 9, 'start');
+  s+=lbl(DIST_X+DIST_W+6, DT+32, '7.0°C',   '#4ab8ff', 10,  'start', 'font-weight="600"');
   // CHW supply → 分水器
-  s+=`<line class="chw-sup" x1="${CHW_SUP_X}" y1="${HDR_TOP}" x2="${CHW_SUP_X}" y2="${DT+28}"/>`;
-  s+=`<line class="chw-sup" x1="${CHW_SUP_X}" y1="${DT+28}" x2="${DIST_X}" y2="${DT+28}"/>`;
+  s+=`<line class="chw-sup" x1="${CHW_SUP_X}" y1="${HDR_TOP}" x2="${CHW_SUP_X}" y2="${DT+26}"/>`;
+  s+=`<line class="chw-sup" x1="${CHW_SUP_X}" y1="${DT+26}"   x2="${DIST_X}"    y2="${DT+26}"/>`;
 
-  // ── 集水器 ────────────────────────────────────
-  const CT=458, CB=618;
-  s+=drawCylinder(DIST_X, CT, DIST_W, CB-CT, '#00c896', '集水器');
-  s+=label(DIST_X+DIST_W+6, CT+18, '1.0 KPa', 'rgba(255,255,255,.45)', 9, 'start');
-  s+=label(DIST_X+DIST_W+6, CT+33, '12.0°C',  '#00c896', 10, 'start', 'font-weight="600"');
+  // ── 集水器 ────────────────────────────────────────────────────
+  const CT=440, CB=592;
+  s+=cylinder(DIST_X, CT, DIST_W, CB-CT, '#00c896', '集水器');
+  s+=lbl(DIST_X+DIST_W+6, CT+18, '1.0 KPa', 'rgba(255,255,255,.45)', 9, 'start');
+  s+=lbl(DIST_X+DIST_W+6, CT+32, '12.0°C',  '#00c896', 10,  'start', 'font-weight="600"');
   // CHW return → 集水器
-  s+=`<line class="chw-ret" x1="${CHW_RET_X}" y1="${HDR_BOT}" x2="${CHW_RET_X}" y2="${CT+28}"/>`;
-  s+=`<line class="chw-ret" x1="${CHW_RET_X}" y1="${CT+28}" x2="${DIST_X}" y2="${CT+28}"/>`;
+  s+=`<line class="chw-ret" x1="${CHW_RET_X}" y1="${HDR_BOT}" x2="${CHW_RET_X}" y2="${CT+26}"/>`;
+  s+=`<line class="chw-ret" x1="${CHW_RET_X}" y1="${CT+26}"   x2="${DIST_X}"    y2="${CT+26}"/>`;
 
-  // ── 旁通阀 ────────────────────────────────────
-  const BP_CX=DIST_X+DIST_W/2;
-  const BP_Y1=DB+8, BP_Y2=CT-8, BP_MID=(BP_Y1+BP_Y2)/2;
-  s+=`<line class="bypass" x1="${BP_CX}" y1="${BP_Y1}" x2="${BP_CX}" y2="${BP_Y2}"/>`;
-  s+=valve(BP_CX, BP_MID, '#8890aa', 10);
-  s+=label(BP_CX+14, BP_MID+4,  '旁通阀', 'rgba(255,255,255,.42)', 9.5, 'start');
-  s+=label(BP_CX+14, BP_MID+18, '1.0 %',  '#8890aa', 9.5, 'start', 'font-weight="600"');
+  // ── 旁通阀 ────────────────────────────────────────────────────
+  const BPX=DIST_X+DIST_W/2;
+  const BY1=DB+8, BY2=CT-8, BMID=(BY1+BY2)/2;
+  s+=`<line class="bypass" x1="${BPX}" y1="${BY1}" x2="${BPX}" y2="${BY2}"/>`;
+  s+=valve(BPX, BMID, '#8890aa', 10);
+  s+=lbl(BPX+13, BMID+4,  '旁通阀', 'rgba(255,255,255,.42)', 9,   'start');
+  s+=lbl(BPX+13, BMID+17, '1.0 %',  '#8890aa',               9.5, 'start', 'font-weight="600"');
 
-  // ── Rows ──────────────────────────────────────
+  // ── 4 chiller rows ────────────────────────────────────────────
   ROWS.forEach((row,i)=>{ s+=drawRow(row,i); });
 
-  // ── Legend ────────────────────────────────────
-  const lx=W/2-250, ly=672;
-  const items=[
-    {c:'#f0a020',l:'冷却水供'},{c:'#d84030',l:'冷却水回'},
-    {c:'#4ab8ff',l:'冷冻水供'},{c:'#00c896',l:'冷冻水回'},
-  ];
-  s+=`<rect x="${lx-14}" y="${ly-15}" width="530" height="24" rx="4" fill="rgba(255,255,255,.025)"/>`;
-  items.forEach((it,i)=>{
-    const ix=lx+i*132;
-    s+=`<line x1="${ix}" y1="${ly}" x2="${ix+30}" y2="${ly}" stroke="${it.c}" stroke-width="2" stroke-dasharray="5 3"/>`;
-    s+=label(ix+36, ly+4, it.l, 'rgba(255,255,255,.45)', 9.5, 'start');
+  // ── legend ────────────────────────────────────────────────────
+  const LX=W/2-248, LY=638;
+  const LEGS=[{c:'#f0a020',l:'冷却水供'},{c:'#d84030',l:'冷却水回'},
+              {c:'#4ab8ff',l:'冷冻水供'},{c:'#00c896',l:'冷冻水回'}];
+  s+=`<rect x="${LX-12}" y="${LY-14}" width="520" height="22" rx="4" fill="rgba(255,255,255,.022)"/>`;
+  LEGS.forEach((it,i)=>{
+    const ix=LX+i*130;
+    s+=`<line x1="${ix}" y1="${LY}" x2="${ix+28}" y2="${LY}" stroke="${it.c}" stroke-width="2" stroke-dasharray="5 3"/>`;
+    s+=lbl(ix+34, LY+4, it.l, 'rgba(255,255,255,.44)', 9.5, 'start');
   });
 
   s+=`</svg>`;
   return s;
 }
 
-// ── DRAW ROW ──────────────────────────────────────
-function drawRow(row, idx) {
+// ── DRAW ROW ──────────────────────────────────────────────────────
+function drawRow(row,idx){
   const {id,brand,cwHz,chwHz,pct,kw,y}=row;
-  const supY=y+SUP_DY;
-  const retY=y+RET_DY;
-  const d=idx*0.15;
+  const sY=y+SUP_DY, rY=y+RET_DY;
+  const d=idx*.15;
   let s='';
 
-  // CW supply: header → pump → valve → chiller
-  s+=`<line class="cw-sup" x1="${CW_SUP_X}"   y1="${supY}" x2="${CW_PUMP_X-22}" y2="${supY}" style="animation-delay:${d}s"/>`;
-  s+=`<line class="cw-sup" x1="${CW_PUMP_X+22}" y1="${supY}" x2="${CW_VLV_X-12}" y2="${supY}" style="animation-delay:${d+.1}s"/>`;
-  s+=`<line class="cw-sup" x1="${CW_VLV_X+12}" y1="${supY}" x2="${CH_LEFT}"     y2="${supY}" style="animation-delay:${d+.2}s"/>`;
+  // CW supply (orange →): header → pump → valve → chiller
+  s+=`<line class="cw-sup" x1="${CW_SUP_X}"    y1="${sY}" x2="${CW_PUMP_X-21}" y2="${sY}" style="animation-delay:${d}s"/>`;
+  s+=`<line class="cw-sup" x1="${CW_PUMP_X+21}" y1="${sY}" x2="${CW_VLV_X-12}" y2="${sY}" style="animation-delay:${d+.1}s"/>`;
+  s+=`<line class="cw-sup" x1="${CW_VLV_X+12}" y1="${sY}" x2="${CH_LEFT}"      y2="${sY}" style="animation-delay:${d+.2}s"/>`;
+  // CW return (red ←): chiller → header
+  s+=`<line class="cw-ret" x1="${CH_LEFT}" y1="${rY}" x2="${CW_RET_X}" y2="${rY}" style="animation-delay:${d+.05}s"/>`;
 
-  // CW return: chiller → header (straight)
-  s+=`<line class="cw-ret" x1="${CH_LEFT}" y1="${retY}" x2="${CW_RET_X}" y2="${retY}" style="animation-delay:${d+.05}s"/>`;
+  // CHW supply (blue →): chiller → valve → pump → header
+  s+=`<line class="chw-sup" x1="${CH_RIGHT}"     y1="${sY}" x2="${CHW_VLV_X-12}"  y2="${sY}" style="animation-delay:${d+.1}s"/>`;
+  s+=`<line class="chw-sup" x1="${CHW_VLV_X+12}" y1="${sY}" x2="${CHW_PUMP_X-21}" y2="${sY}" style="animation-delay:${d+.2}s"/>`;
+  s+=`<line class="chw-sup" x1="${CHW_PUMP_X+21}" y1="${sY}" x2="${CHW_SUP_X}"    y2="${sY}" style="animation-delay:${d+.3}s"/>`;
+  // CHW return (teal ←): header → chiller
+  s+=`<line class="chw-ret" x1="${CHW_RET_X}" y1="${rY}" x2="${CH_RIGHT}" y2="${rY}" style="animation-delay:${d+.05}s"/>`;
 
-  // CHW supply: chiller → valve → pump → header
-  s+=`<line class="chw-sup" x1="${CH_RIGHT}"    y1="${supY}" x2="${CHW_VLV_X-12}"  y2="${supY}" style="animation-delay:${d+.1}s"/>`;
-  s+=`<line class="chw-sup" x1="${CHW_VLV_X+12}" y1="${supY}" x2="${CHW_PUMP_X-22}" y2="${supY}" style="animation-delay:${d+.2}s"/>`;
-  s+=`<line class="chw-sup" x1="${CHW_PUMP_X+22}" y1="${supY}" x2="${CHW_SUP_X}"   y2="${supY}" style="animation-delay:${d+.3}s"/>`;
-
-  // CHW return: header → chiller (straight)
-  s+=`<line class="chw-ret" x1="${CHW_RET_X}" y1="${retY}" x2="${CH_RIGHT}" y2="${retY}" style="animation-delay:${d+.05}s"/>`;
-
-  // ── CW pump (label above, Hz below) ──────────
-  s+=pump(CW_PUMP_X, supY, cwHz, `cw${id}`, '#f0a020');
-  s+=label(CW_PUMP_X, supY-48, `${id}#冷却泵`, 'rgba(255,255,255,.52)', 9.5, 'middle');
-  s+=remoteLabel(CW_PUMP_X, supY-34);
+  // ── CW pump — label above, Hz below ──────────
+  s+=pump(CW_PUMP_X, sY, cwHz, `cw${id}`, '#f0a020');
+  s+=lbl(CW_PUMP_X, sY-44, `${id}#冷却泵`, 'rgba(255,255,255,.54)', 9.5, 'middle');
+  s+=rem(CW_PUMP_X, sY-30);
 
   // ── CW valve ─────────────────────────────────
-  s+=valve(CW_VLV_X, supY, '#f0a020', 11);
-  s+=label(CW_VLV_X, supY-28, `${id}#冷却阀`, 'rgba(255,255,255,.42)', 9, 'middle');
+  s+=valve(CW_VLV_X, sY, '#f0a020');
+  s+=lbl(CW_VLV_X, sY-26, `${id}#冷却阀`, 'rgba(255,255,255,.42)', 9, 'middle');
 
-  // ── Chiller ──────────────────────────────────
+  // ── Chiller box ───────────────────────────────
   s+=chiller(id, brand, pct, kw, y);
 
-  // ── CHW valve ────────────────────────────────
-  s+=valve(CHW_VLV_X, supY, '#4ab8ff', 11);
-  s+=label(CHW_VLV_X, supY-28, `${id}#冷冻阀`, 'rgba(255,255,255,.42)', 9, 'middle');
+  // ── CHW valve ─────────────────────────────────
+  s+=valve(CHW_VLV_X, sY, '#4ab8ff');
+  s+=lbl(CHW_VLV_X, sY-26, `${id}#冷冻阀`, 'rgba(255,255,255,.42)', 9, 'middle');
 
-  // ── CHW pump ─────────────────────────────────
-  s+=pump(CHW_PUMP_X, supY, chwHz, `chw${id}`, '#4ab8ff');
-  s+=label(CHW_PUMP_X, supY-48, `${id}#冷冻泵`, 'rgba(255,255,255,.52)', 9.5, 'middle');
-  s+=remoteLabel(CHW_PUMP_X, supY-34);
+  // ── CHW pump ──────────────────────────────────
+  s+=pump(CHW_PUMP_X, sY, chwHz, `chw${id}`, '#4ab8ff');
+  s+=lbl(CHW_PUMP_X, sY-44, `${id}#冷冻泵`, 'rgba(255,255,255,.54)', 9.5, 'middle');
+  s+=rem(CHW_PUMP_X, sY-30);
 
-  // ── Temp sensors (only row 1, placed on pipes between devices) ──
-  if (idx===0) {
-    // CW supply temp — between header and pump, on the pipe
-    s+=tempDot(CW_SUP_X+30, supY-14, '28.4°C', '#f0a020', 'start');
-    // CW return temp — between chiller and header, on return pipe
-    s+=tempDot(CW_RET_X+30, retY+14, '35.2°C', '#d84030', 'start');
-    // CHW supply temp — between pump and header
-    s+=tempDot(CHW_SUP_X-30, supY-14, '7.0°C', '#4ab8ff', 'end');
-    // CHW return temp — between header and chiller
-    s+=tempDot(CHW_RET_X-30, retY+14, '12.0°C', '#00c896', 'end');
+  // ── Temp sensors (row 1 only, placed on pipe segments) ────────
+  if(idx===0){
+    // between header and pump, on supply pipe
+    s+=tempDot(CW_SUP_X+28,  sY-1, '28.4°C', '#f0a020', 'start');
+    // between chiller and header, on return pipe
+    s+=tempDot(CW_RET_X+28,  rY+1, '35.2°C', '#d84030', 'start');
+    // between pump and header, CHW supply side
+    s+=tempDot(CHW_SUP_X-28, sY-1, '7.0°C',  '#4ab8ff', 'end');
+    // header to chiller, CHW return side
+    s+=tempDot(CHW_RET_X-28, rY+1, '12.0°C', '#00c896', 'end');
   }
-
   return s;
 }
 
-document.getElementById('app').innerHTML = buildSVG();
+document.getElementById('app').innerHTML = build();
 </script>
 </body>
 </html>
