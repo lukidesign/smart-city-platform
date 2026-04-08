@@ -40,10 +40,10 @@ const W = 1260, H = 660;
 
 // 4 chiller rows — evenly distributed, 140px row pitch
 const ROWS = [
-  { id:1, brand:'特灵', cwHz:'46.0', chwHz:'45.0', pct:'78', kw:'125', y:138 },
-  { id:2, brand:'特灵', cwHz:'44.0', chwHz:'43.0', pct:'72', kw:'118', y:278 },
-  { id:3, brand:'格力', cwHz:'42.0', chwHz:'41.0', pct:'65', kw:'105', y:418 },
-  { id:4, brand:'格力', cwHz:'38.0', chwHz:'36.0', pct:'55', kw:'88',  y:558 },
+  { id:1, brand:'Trane', cwHz:'46.0', chwHz:'45.0', pct:'78', kw:'125', y:138 },
+  { id:2, brand:'Trane', cwHz:'44.0', chwHz:'43.0', pct:'72', kw:'118', y:278 },
+  { id:3, brand:'Gree',  cwHz:'42.0', chwHz:'41.0', pct:'65', kw:'105', y:418 },
+  { id:4, brand:'Gree',  cwHz:'38.0', chwHz:'36.0', pct:'55', kw:'88',  y:558 },
 ];
 
 // pipe Y offsets from row centre
@@ -75,7 +75,7 @@ const DIST_W    = 70;
 // ── HELPERS ──────────────────────────────────────────────────────
 const lbl = (x,y,t,c='rgba(255,255,255,.44)',sz=9.5,a='middle',x2='')=>
   `<text x="${x}" y="${y}" fill="${c}" font-size="${sz}" text-anchor="${a}" font-family="-apple-system,sans-serif" ${x2}>${t}</text>`;
-const rem = (x,y)=> lbl(x,y,'远程','#00c896',8.5,'middle','letter-spacing="0.5"');
+const rem = (x,y)=> lbl(x,y,'Remote','#00c896',8.5,'middle','letter-spacing="0.5"');
 
 function pump(cx,cy,hz,pid,col){
   const r=21;
@@ -102,7 +102,7 @@ function tower(cx,cy,n){
     fill="rgba(160,200,255,.04)" stroke="rgba(120,170,220,.32)" stroke-width="1.2"/>
   <line x1="${cx-16}" y1="${top+9}"  x2="${cx+16}" y2="${top+9}"  stroke="rgba(120,170,220,.28)" stroke-width="1"/>
   <line x1="${cx-12}" y1="${top+17}" x2="${cx+12}" y2="${top+17}" stroke="rgba(120,170,220,.18)" stroke-width="1"/>
-  ${lbl(cx, top-6, `${n}#冷却塔`, 'rgba(255,255,255,.52)', 8.5)}`;
+  ${lbl(cx, top-6, `CT-${n}`, 'rgba(255,255,255,.52)', 8.5)}`;
 }
 
 function chiller(id,brand,pct,kw,y){
@@ -111,7 +111,7 @@ function chiller(id,brand,pct,kw,y){
     fill="rgba(30,50,90,.52)" stroke="rgba(100,160,255,.26)" stroke-width="1.5"/>
   <circle cx="${CH_LEFT+13}" cy="${ry+13}" r="4" fill="#00e090" class="run-dot"
     style="filter:drop-shadow(0 0 4px #00e090)"/>
-  ${lbl(CH_LEFT+w/2, ry+23, `${id}#主机（${brand}）`, 'rgba(255,255,255,.8)', 12.5, 'middle', 'font-weight="600"')}
+  ${lbl(CH_LEFT+w/2, ry+23, `Chiller-${id} (${brand})`, 'rgba(255,255,255,.8)', 12.5, 'middle', 'font-weight="600"')}
   ${lbl(CH_LEFT+w/2-28, ry+45, `${pct}%`, '#00c896', 12, 'middle', 'font-weight="700"')}
   ${lbl(CH_LEFT+w/2+22, ry+45, `${kw} kW`, 'rgba(255,255,255,.5)', 10.5, 'middle')}
   ${rem(CH_LEFT+w-24, ry+13)}`;
@@ -176,7 +176,7 @@ function build(){
 
   // ── 分水器 ────────────────────────────────────────────────────
   const DT=68, DB=220;
-  s+=cylinder(DIST_X, DT, DIST_W, DB-DT, '#4ab8ff', '分水器');
+  s+=cylinder(DIST_X, DT, DIST_W, DB-DT, '#4ab8ff', 'Dist.');
   s+=lbl(DIST_X+DIST_W+6, DT+18, '1.0 KPa', 'rgba(255,255,255,.45)', 9, 'start');
   s+=lbl(DIST_X+DIST_W+6, DT+32, '7.0°C',   '#4ab8ff', 10,  'start', 'font-weight="600"');
   // CHW supply → 分水器
@@ -185,7 +185,7 @@ function build(){
 
   // ── 集水器 ────────────────────────────────────────────────────
   const CT=440, CB=592;
-  s+=cylinder(DIST_X, CT, DIST_W, CB-CT, '#00c896', '集水器');
+  s+=cylinder(DIST_X, CT, DIST_W, CB-CT, '#00c896', 'Coll.');
   s+=lbl(DIST_X+DIST_W+6, CT+18, '1.0 KPa', 'rgba(255,255,255,.45)', 9, 'start');
   s+=lbl(DIST_X+DIST_W+6, CT+32, '12.0°C',  '#00c896', 10,  'start', 'font-weight="600"');
   // CHW return → 集水器
@@ -197,7 +197,7 @@ function build(){
   const BY1=DB+8, BY2=CT-8, BMID=(BY1+BY2)/2;
   s+=`<line class="bypass" x1="${BPX}" y1="${BY1}" x2="${BPX}" y2="${BY2}"/>`;
   s+=valve(BPX, BMID, '#8890aa', 10);
-  s+=lbl(BPX+13, BMID+4,  '旁通阀', 'rgba(255,255,255,.42)', 9,   'start');
+  s+=lbl(BPX+13, BMID+4,  'Bypass', 'rgba(255,255,255,.42)', 9,   'start');
   s+=lbl(BPX+13, BMID+17, '1.0 %',  '#8890aa',               9.5, 'start', 'font-weight="600"');
 
   // ── 4 chiller rows ────────────────────────────────────────────
@@ -205,8 +205,8 @@ function build(){
 
   // ── legend ────────────────────────────────────────────────────
   const LX=W/2-248, LY=638;
-  const LEGS=[{c:'#f0a020',l:'冷却水供'},{c:'#d84030',l:'冷却水回'},
-              {c:'#4ab8ff',l:'冷冻水供'},{c:'#00c896',l:'冷冻水回'}];
+  const LEGS=[{c:'#f0a020',l:'CW Supply'},{c:'#d84030',l:'CW Return'},
+              {c:'#4ab8ff',l:'CHW Supply'},{c:'#00c896',l:'CHW Return'}];
   s+=`<rect x="${LX-12}" y="${LY-14}" width="520" height="22" rx="4" fill="rgba(255,255,255,.022)"/>`;
   LEGS.forEach((it,i)=>{
     const ix=LX+i*130;
@@ -241,23 +241,23 @@ function drawRow(row,idx){
 
   // ── CW pump — label above, Hz below ──────────
   s+=pump(CW_PUMP_X, sY, cwHz, `cw${id}`, '#f0a020');
-  s+=lbl(CW_PUMP_X, sY-44, `${id}#冷却泵`, 'rgba(255,255,255,.54)', 9.5, 'middle');
+  s+=lbl(CW_PUMP_X, sY-44, `CW Pump-${id}`, 'rgba(255,255,255,.54)', 9.5, 'middle');
   s+=rem(CW_PUMP_X, sY-30);
 
   // ── CW valve ─────────────────────────────────
   s+=valve(CW_VLV_X, sY, '#f0a020');
-  s+=lbl(CW_VLV_X, sY-26, `${id}#冷却阀`, 'rgba(255,255,255,.42)', 9, 'middle');
+  s+=lbl(CW_VLV_X, sY-26, `CW Valve-${id}`, 'rgba(255,255,255,.42)', 9, 'middle');
 
   // ── Chiller box ───────────────────────────────
   s+=chiller(id, brand, pct, kw, y);
 
   // ── CHW valve ─────────────────────────────────
   s+=valve(CHW_VLV_X, sY, '#4ab8ff');
-  s+=lbl(CHW_VLV_X, sY-26, `${id}#冷冻阀`, 'rgba(255,255,255,.42)', 9, 'middle');
+  s+=lbl(CHW_VLV_X, sY-26, `CHW Valve-${id}`, 'rgba(255,255,255,.42)', 9, 'middle');
 
   // ── CHW pump ──────────────────────────────────
   s+=pump(CHW_PUMP_X, sY, chwHz, `chw${id}`, '#4ab8ff');
-  s+=lbl(CHW_PUMP_X, sY-44, `${id}#冷冻泵`, 'rgba(255,255,255,.54)', 9.5, 'middle');
+  s+=lbl(CHW_PUMP_X, sY-44, `CHW Pump-${id}`, 'rgba(255,255,255,.54)', 9.5, 'middle');
   s+=rem(CHW_PUMP_X, sY-30);
 
   // ── Temp sensors (row 1 only, placed on pipe segments) ────────
