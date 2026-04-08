@@ -188,9 +188,10 @@ function buildSVG() {
   // CHW return (teal) header
   s += `<line class="chw-ret-hdr" x1="${CHW_RET_X}" y1="${HDR_TOP}" x2="${CHW_RET_X}" y2="${HDR_BOT}"/>`;
 
-  // ── CW temp sensor at bottom ─────────────────
-  s += tempLabel(CW_SUP_X + 8, HDR_BOT + 20, '28.4°C', '#f0a020', 'start');
-  s += tempLabel(CW_RET_X + 8, HDR_BOT + 38, '35.2°C', '#d84030', 'start');
+  // ── CW temp sensors near header top ──────────
+  // (shown here on the header, not per-row)
+  s += tempLabel(CW_SUP_X - 14, HDR_TOP - 16, '28.4°C', '#f0a020', 'end');
+  s += tempLabel(CW_RET_X + 14, HDR_TOP - 3,  '35.2°C', '#d84030', 'start');
 
   // ── CW header top connector to towers ────────
   const CW_TOP = HDR_TOP - 10;
@@ -289,32 +290,31 @@ function drawRow(row, idx) {
 
   // ── CW pump ──────────────────────────────────
   s += pump(CW_PUMP_X, supY, cwHz, `cw${id}`, '#f0a020');
-  s += label(CW_PUMP_X, supY - 28, `${id}#冷却泵`, 'rgba(255,255,255,.5)', 8.8, 'middle');
-  s += remoteLabel(CW_PUMP_X, supY - 18);
+  s += label(CW_PUMP_X, supY - 42, `${id}#冷却泵`, 'rgba(255,255,255,.5)', 8.8, 'middle');
+  s += remoteLabel(CW_PUMP_X, supY - 29);
 
   // ── CW valve ─────────────────────────────────
   s += valve(CW_VLV_X, supY, '#f0a020', 9);
-  s += label(CW_VLV_X, supY - 18, `${id}#冷却阀`, 'rgba(255,255,255,.4)', 8, 'middle');
+  s += label(CW_VLV_X, supY - 24, `${id}#冷却阀`, 'rgba(255,255,255,.4)', 8, 'middle');
 
   // ── Chiller box ──────────────────────────────
   s += chiller(id, brand, pct, kw, y);
 
   // ── CHW valve ────────────────────────────────
   s += valve(CHW_VLV_X, supY, '#4ab8ff', 9);
-  s += label(CHW_VLV_X, supY - 18, `${id}#冷冻阀`, 'rgba(255,255,255,.4)', 8, 'middle');
+  s += label(CHW_VLV_X, supY - 24, `${id}#冷冻阀`, 'rgba(255,255,255,.4)', 8, 'middle');
 
   // ── CHW pump ─────────────────────────────────
   s += pump(CHW_PUMP_X, supY, chwHz, `chw${id}`, '#4ab8ff');
-  s += label(CHW_PUMP_X, supY - 28, `${id}#冷冻泵`, 'rgba(255,255,255,.5)', 8.8, 'middle');
-  s += remoteLabel(CHW_PUMP_X, supY - 18);
+  s += label(CHW_PUMP_X, supY - 42, `${id}#冷冻泵`, 'rgba(255,255,255,.5)', 8.8, 'middle');
+  s += remoteLabel(CHW_PUMP_X, supY - 29);
 
-  // ── Temp dots on CW side ─────────────────────
-  s += tempLabel(CW_SUP_X + 40, supY, '28.4°C', '#f0a020');
-  s += tempLabel(CH_LEFT - 18, retY, '35.2°C', '#d84030', 'end');
-
-  // ── Temp dots on CHW side ────────────────────
-  s += tempLabel(CH_RIGHT + 18, supY, '7.0°C', '#4ab8ff', 'start');
-  s += tempLabel(CHW_RET_X + 40, retY, '12.0°C', '#00c896', 'start');
+  // ── Temp dots: only on first row to avoid repetition ────
+  if (idx === 0) {
+    s += tempLabel(CW_PUMP_X - 30, supY - 4, '28.4°C', '#f0a020', 'end');
+    s += tempLabel(CH_LEFT - 22, retY - 4, '35.2°C', '#d84030', 'end');
+    s += tempLabel(CH_RIGHT + 22, supY - 4, '7.0°C', '#4ab8ff', 'start');
+  }
 
   return s;
 }
