@@ -134,9 +134,9 @@ function cylinder(x,y,w,h,col,name){
   ${lbl(cx, y+h/2+5, name, col, 12, 'middle', 'font-weight="700" letter-spacing="2"')}`;
 }
 
-function tempDot(x,y,val,col,anchor='start'){
-  return `<circle cx="${x}" cy="${y}" r="3.5" fill="${col}" opacity=".9"/>
-  ${lbl(x+(anchor==='start'?8:-8), y+4, val, col, 9.5, anchor, 'font-weight="500"')}`;
+function tempDot(x,y,val,col,anchor='start',textDy=4){
+  return `<circle cx="${x}" cy="${y}" r="4" fill="${col}" opacity=".95" style="filter:drop-shadow(0 0 3px ${col})"/>
+  ${lbl(x+(anchor==='start'?7:-7), y+textDy, val, col, 10.5, anchor, 'font-weight="700"')}`;
 }
 
 // ── BUILD ─────────────────────────────────────────────────────────
@@ -260,16 +260,16 @@ function drawRow(row,idx){
   s+=lbl(CHW_PUMP_X, rY-44, `CHW Pump-${id}`, 'rgba(255,255,255,.54)', 9.5, 'middle');
   s+=rem(CHW_PUMP_X, rY-30);
 
-  // ── Temp sensors (row 1 only, placed on pipe segments) ────────
+  // ── Temp sensors (row 1 only) ──────────────────────────────────
   if(idx===0){
-    // between header and pump, on supply pipe
-    s+=tempDot(CW_SUP_X+28,  sY-1, '28.4°C', '#f0a020', 'start');
-    // between chiller and header, on return pipe
-    s+=tempDot(CW_RET_X+28,  rY+1, '35.2°C', '#d84030', 'start');
-    // between pump and header, CHW supply side
-    s+=tempDot(CHW_SUP_X-28, sY-1, '7.0°C',  '#4ab8ff', 'end');
-    // header to chiller, CHW return side
-    s+=tempDot(CHW_RET_X-28, rY+1, '12.0°C', '#00c896', 'end');
+    // CW supply: between header and pump — text ABOVE pipe, anchor right→left
+    s+=tempDot(CW_SUP_X+32,  sY, '28.4°C', '#f0a020', 'end',   -11);
+    // CW return: between pump and valve (clear of Hz label) — text BELOW
+    s+=tempDot((CW_PUMP_X+CW_VLV_X)/2, rY, '35.2°C', '#d84030', 'middle', +15);
+    // CHW supply: between chiller and CHW valve — text ABOVE, clear of pump
+    s+=tempDot((CH_RIGHT+CHW_VLV_X)/2, sY, '7.0°C',  '#4ab8ff', 'middle', -11);
+    // CHW return: same x zone — text BELOW
+    s+=tempDot((CH_RIGHT+CHW_VLV_X)/2, rY, '12.0°C', '#00c896', 'middle', +15);
   }
   return s;
 }
