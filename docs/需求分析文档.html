@@ -16,12 +16,14 @@ ul,ol{padding-left:24px}
 li{margin:4px 0}
 .meta{color:#64748b;font-size:13px;margin:2px 0}
 .footer{color:#94a3b8;font-size:12px;margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0}
+.version-tag{display:inline-block;background:#dbeafe;color:#1e40af;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:8px;vertical-align:middle}
+.current{background:#dcfce7;color:#166534}
 </style></head><body>
 
 <h1>RunDo Energy Carbon Center — 需求分析文档（PRD）</h1>
-<p class="meta"><strong>文档版本：</strong> v1.2</p>
-<p class="meta"><strong>编写日期：</strong> 2026-04-02</p>
-<p class="meta"><strong>对应平台版本：</strong> v3.5.5</p>
+<p class="meta"><strong>文档版本：</strong> v1.3</p>
+<p class="meta"><strong>编写日期：</strong> 2026-04-09</p>
+<p class="meta"><strong>对应平台版本：</strong> v3.6.0</p>
 <p class="meta"><strong>Figma 设计稿：</strong> <a href="https://www.figma.com/design/zOsnUZun5PyXPgfz926Agg/">Des_CC_FigmaBuilding3D</a></p>
 <hr>
 
@@ -50,7 +52,7 @@ li{margin:4px 0}
 <table><tr><th>角色</th><th>描述</th><th>核心需求</th></tr>
 <tr><td>能源管理员</td><td>负责整栋楼能耗管理</td><td>查看整体用量、应用 AI 优化建议</td></tr>
 <tr><td>楼层负责人</td><td>负责某层楼的运营</td><td>查看本层用量、对比优化前后数据</td></tr>
-<tr><td>设备运维员</td><td>关注机房/设备运行状态</td><td>VIEW 卡片查看压缩机/泵/冷水系统实时监测图</td></tr>
+<tr><td>设备运维员</td><td>关注机房/设备运行状态</td><td>VIEW 卡片查看压缩机/泵/冷冻机房系统实时监测图</td></tr>
 <tr><td>系统演示员</td><td>向客户展示平台能力</td><td>流畅动画、直观可视化、完整演示流程</td></tr>
 </table>
 
@@ -82,6 +84,16 @@ li{margin:4px 0}
   <li>毛玻璃背景（backdrop-filter: blur）</li>
 </ul>
 <p><strong>Campus Tab 热区：</strong> 范围 <code>left 23%–82%，top 16%–81%</code>，点击切换至 Building Tab，提示文字 <code>"Enter Building View"</code></p>
+
+<p><strong>Zone 选择器（Tab 栏右侧）：</strong></p>
+<table><tr><th>需求项</th><th>描述</th><th>当前状态</th></tr>
+<tr><td>位置</td><td>Tab 栏右侧，竖向分隔线后</td><td>✅ 已实现</td></tr>
+<tr><td>选项来源</td><td>ZONES 数组，动态渲染</td><td>✅ 已实现</td></tr>
+<tr><td>选项数量</td><td>6 个区域（Zone A–G）</td><td>✅ 已实现</td></tr>
+<tr><td>样式</td><td>圆角 pill，半透明深色背景，与 Tab 风格一致</td><td>✅ 已实现</td></tr>
+<tr><td>容器宽度</td><td>Tab 栏容器 480→660px 以容纳 Zone 控件</td><td>✅ 已实现</td></tr>
+<tr><td>隐藏逻辑</td><td>Zone Tab 隐藏时 dropdown 也一并隐藏</td><td>✅ 已实现</td></tr>
+</table>
 
 <h3>3.3 Building Tab — 3D 建筑楼层视图</h3>
 <h4>3.3.1 楼层选择器</h4>
@@ -121,7 +133,7 @@ li{margin:4px 0}
 <tr><td>AI 面板联动</td><td>AI 打开时模型自动偏移居中</td><td>✅ 已实现</td></tr>
 </table>
 <p><strong>3D 楼层位置计算公式：</strong></p>
-<pre>mesh.position.y = (f.id - 1) * (FH + FG) + FH / 2</pre>
+<pre><code>mesh.position.y = (f.id - 1) * (FH + FG) + FH / 2</code></pre>
 <blockquote>注：<code>f.id</code> 为楼层号（1–7），不使用 FLOORS 数组索引，避免倒序导致高亮错位。</blockquote>
 
 <h3>3.5 Zone Tab — 区域视图（当前隐藏）</h3>
@@ -148,12 +160,12 @@ li{margin:4px 0}
 </table>
 
 <h4>3.6.3 Stats Cards（统计卡片）</h4>
-<p>四张卡片，2×2 网格布局，每张含 count-up 动画数值、优化后数值（蓝色）、节省幅度（绿色）：</p>
-<table><tr><th>卡片</th><th>指标</th><th>示例数值</th></tr>
-<tr><td>Daily consumption</td><td>日用量</td><td>332 kWh</td></tr>
-<tr><td>Weekly consumption</td><td>周用量</td><td>1,437 kWh</td></tr>
-<tr><td>Monthly consumption</td><td>月用量</td><td>10,400 kWh</td></tr>
-<tr><td>Yearly consumption</td><td>年用量</td><td>154,300 kWh</td></tr>
+<p>四张卡片，2×2 网格布局，数值均从 <code>E</code> 对象读取（单一数据源），每张含 count-up 动画数值、优化后数值（蓝色）、节省幅度（绿色）：</p>
+<table><tr><th>卡片</th><th>指标</th><th>数值来源</th></tr>
+<tr><td>Daily consumption</td><td>日用量</td><td><code>E.daily</code>（3,900 kWh）</td></tr>
+<tr><td>Weekly consumption</td><td>周用量</td><td><code>E.weekly</code>（27,300 kWh）</td></tr>
+<tr><td>Monthly consumption</td><td>月用量</td><td><code>E.monthly</code>（58,500 kWh）</td></tr>
+<tr><td>Yearly consumption</td><td>年用量</td><td><code>E.yearly</code>（409,500 kWh）</td></tr>
 </table>
 
 <h4>3.6.4 Monthly Savings 折线图</h4>
@@ -162,6 +174,7 @@ li{margin:4px 0}
 <tr><td>X 轴</td><td>1 Dec → 30 Dec（每 5 天一刻度）</td><td>✅ 已实现</td></tr>
 <tr><td>从左向右绘制</td><td>lineDrawPlugin 裁剪动画</td><td>✅ 已实现</td></tr>
 <tr><td>Hover 竖线</td><td>crosshairPlugin 竖向参考线</td><td>✅ 已实现</td></tr>
+<tr><td>Y 轴动态自适应</td><td><code>_maxCost = Math.max(...SAVINGS.map(d=&gt;d.cost))</code>，用 <code>log10</code> 求数量级，<code>Math.ceil</code> 取整后 ÷5 得均分步长，Y 轴始终均匀分布 5 格</td><td>✅ 已实现</td></tr>
 </table>
 
 <h3>3.7 地图控件（Map Controls）</h3>
@@ -178,8 +191,8 @@ li{margin:4px 0}
 <h3>3.8 VIEW 设备监测卡片</h3>
 <p>叠加在右侧视图区的三张设备监测图片卡片，点击可全屏弹窗查看详情。<br>
 <strong>触发方式：</strong> 点击 Map Controls 中的 ⊙ 图标，默认隐藏。</p>
-<table><tr><th>卡片编号</th><th>缩略图</th><th>设备类型</th><th>弹窗图片</th></tr>
-<tr><td>VIEW 1</td><td>rd/view1.png</td><td>CMP-1 压缩机监测</td><td>rd/ntimg.png</td></tr>
+<table><tr><th>卡片编号</th><th>缩略图</th><th>设备类型</th><th>弹窗内容</th></tr>
+<tr><td>VIEW 1</td><td>rd/view1.png</td><td>冷冻机房系统图</td><td>iframe 打开 rd/chiller-plant.html 动态流程图</td></tr>
 <tr><td>VIEW 2</td><td>rd/view2.png</td><td>CH-1 水泵监测（含 overlay 遮层）</td><td>rd/ntimg01.png</td></tr>
 <tr><td>VIEW 3</td><td>rd/view3.png</td><td>冷水系统总览</td><td>rd/ntimg.png</td></tr>
 </table>
@@ -189,7 +202,7 @@ li{margin:4px 0}
 <tr><td>2</td><td>100%</td><td>0%</td><td>true</td></tr>
 <tr><td>3</td><td>144.63%</td><td>-11.97%</td><td>false</td></tr>
 </table>
-<p><strong>交互：</strong> 点击卡片 → 全屏弹窗（ReactDOM.createPortal）；卡片有 bearingPulse 呼吸光晕动效。</p>
+<p><strong>交互：</strong> 点击卡片 → 全屏弹窗（ReactDOM.createPortal）；VIEW 1 在 iframe 中加载 <code>rd/chiller-plant.html</code>；卡片有 bearingPulse 呼吸光晕动效。</p>
 
 <h3>3.9 Globe3D 地球仪</h3>
 <table><tr><th>需求项</th><th>描述</th><th>当前状态</th></tr>
@@ -204,6 +217,63 @@ li{margin:4px 0}
 <table><tr><th>需求项</th><th>描述</th><th>当前状态</th></tr>
 <tr><td>右上角应用图标</td><td>点击跳转至 rd/RunDo-ECM-v0.6-2026-03-31.html</td><td>✅ 已实现</td></tr>
 <tr><td>ECM 页面 Logo</td><td>RunDo ECM 顶栏左上角显示立方体 app-icon.png</td><td>✅ 已实现</td></tr>
+</table>
+
+<h3>3.11 冷冻机房系统流程图</h3>
+<p><strong>文件：</strong> <code>rd/chiller-plant.html</code>（独立 HTML，SVG + CSS 动画）</p>
+<p>展示冷冻机房完整系统拓扑，设备符号采用平面 UI 风格，管道流向以 4 色 stroke-dasharray 动画表示。</p>
+
+<p><strong>设备清单：</strong></p>
+<table><tr><th>设备类型</th><th>数量</th><th>说明</th></tr>
+<tr><td>冷却塔</td><td>8 台</td><td>顶部排列</td></tr>
+<tr><td>冷却泵</td><td>4 台</td><td>—</td></tr>
+<tr><td>冷却阀</td><td>4 台</td><td>—</td></tr>
+<tr><td>主机</td><td>4 台</td><td>1#2# 特灵，3#4# 格力</td></tr>
+<tr><td>冷冻阀</td><td>4 台</td><td>—</td></tr>
+<tr><td>冷冻泵</td><td>4 台</td><td>—</td></tr>
+<tr><td>分水器 / 集水器</td><td>各 1</td><td>—</td></tr>
+<tr><td>旁通阀</td><td>1 台</td><td>—</td></tr>
+</table>
+
+<p><strong>管道颜色编码：</strong></p>
+<table><tr><th>管路</th><th>颜色</th><th>色值</th></tr>
+<tr><td>冷却水供</td><td>橙色</td><td><code>#f0a020</code></td></tr>
+<tr><td>冷却水回</td><td>红色</td><td><code>#e05040</code></td></tr>
+<tr><td>冷冻水供</td><td>蓝色</td><td><code>#4ab8ff</code></td></tr>
+<tr><td>冷冻水回</td><td>青色</td><td><code>#00c896</code></td></tr>
+</table>
+
+<p><strong>技术规格：</strong> SVG viewBox 1300×660；4 色 stroke-dasharray 流向动画；暗色背景 <code>#09111f</code>；温度传感器标签点半径 4px，字号 10.5px，glow 发光效果；VIEW Card #1 缩略图（<code>rd/view1.png</code>）同步更新。</p>
+
+<h3>3.12 能耗数据架构（单一数据源）</h3>
+<p>所有能耗展示数值统一从顶层常量推导，消除硬编码分散数值，确保数据一致性。</p>
+<p><strong>推导链：</strong></p>
+<pre><code>YEARLY_2025 = 1_423_500  （2025年全年用电量 kWh）
+  └─ DAILY_RATE = Math.round(YEARLY_2025 / 365) = 3900
+  └─ OPT_RATIO = 0.75  （节能比，节省 25%）
+  └─ TODAY_YTD = 105  （截止 2026-04-15 第 105 天）
+  └─ MONTHLY_DAYS = 15
+
+E = {
+  daily:   3900,
+  weekly:  27300,   // 3900 × 7
+  monthly: 58500,   // 3900 × 15
+  yearly:  409500   // 3900 × 105
+}
+
+StatsCards ← E 对象
+FLOORS     ← 按楼层面积权重动态计算（总权 1489）</code></pre>
+
+<p><strong>楼层面积权重分配：</strong></p>
+<table><tr><th>楼层</th><th>权重</th><th>日用量（kWh）</th></tr>
+<tr><td>7F</td><td>180</td><td>~471</td></tr>
+<tr><td>6F</td><td>195</td><td>~510</td></tr>
+<tr><td>5F</td><td>220</td><td>~575</td></tr>
+<tr><td>4F</td><td>235</td><td>~615</td></tr>
+<tr><td>3F</td><td>220</td><td>~575</td></tr>
+<tr><td>2F</td><td>287</td><td>~751</td></tr>
+<tr><td>1F</td><td>152</td><td>~398</td></tr>
+<tr><td><strong>合计</strong></td><td><strong>1489</strong></td><td><strong>3900</strong></td></tr>
 </table>
 
 <hr>
@@ -241,7 +311,6 @@ li{margin:4px 0}
 <table><tr><th>需求</th><th>描述</th><th>预期工作量</th></tr>
 <tr><td>缩放按钮逻辑</td><td>+/- 按钮绑定 Building/3D 视图缩放</td><td>小</td></tr>
 <tr><td>Campus Tab 数据叠加</td><td>城市视频上叠加区域能耗热力图</td><td>大</td></tr>
-<tr><td>Zone Tab 恢复</td><td>重新启用区域选择器和区域着色</td><td>中</td></tr>
 </table>
 
 <h3>P2 — 低优先级</h3>
@@ -260,5 +329,5 @@ li{margin:4px 0}
 <tr><td>线上访问地址</td><td><a href="https://lukidesign.github.io/rundo-energy-carbon-center/index-standalone.html">lukidesign.github.io/rundo-energy-carbon-center</a></td></tr>
 </table>
 
-<p class="footer">文档由 Claude Code 自动生成 · 2026-04-02</p>
+<p class="footer">文档由 Claude Code 自动生成 · 2026-04-09</p>
 </body></html>
