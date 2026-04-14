@@ -134,6 +134,29 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 <script type="text/babel">
 const {useState,useEffect,useRef,useCallback,createContext,useContext}=React;
 
+/* ══ 网络质量检测：决定使用高清资源或压缩资源 ══════════════════════
+   HQ  → effectiveType=4g 且不开启省流 → 原始高清资源
+   LQ  → 3G/2G 或 API 不可用 或 saveData=true → 压缩资源（默认）
+   资源对应关系：
+     视频  HQ: city-view-hq.mp4 (12MB)    LQ: city-view.mp4 (3.3MB)
+     建筑图 HQ: newbuilding3dimg-hq/ 4K    LQ: newbuilding3dimg/ 1920
+     区域图 HQ: zbuilding3dimg-hq/ .png    LQ: zbuilding3dimg/ .jpg
+══════════════════════════════════════════════════════════════════ */
+const _HQ=(function(){
+  try{
+    const c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+    if(!c)return false;          // API 不可用 → 保守选择 LQ
+    if(c.saveData)return false;  // 用户开启省流模式
+    return c.effectiveType==='4g';
+  }catch(e){return false;}
+})();
+/* 资源路径工具 */
+const _V  =()=>_HQ?'city-view-hq.mp4':'city-view.mp4';          // 视频
+const _BI =(f)=>_HQ?`newbuilding3dimg-hq/newbuilding3d-l${f}.png`:`newbuilding3dimg/newbuilding3d-l${f}.png`;
+const _BM =()=>_HQ?'newbuilding3dimg-hq/newbuilding3d-mr.png':'newbuilding3dimg/newbuilding3d-mr.png';
+const _ZI =(f)=>_HQ?`zbuilding3dimg-hq/zbuilding3d-l${f}.png`:`zbuilding3dimg/zbuilding3d-l${f}.jpg`;
+const _ZM =()=>_HQ?'zbuilding3dimg-hq/zbuilding3d-mr.png':'zbuilding3dimg/zbuilding3d-mr.jpg';
+
 /* ══ 地球贴图预缓存：页面加载即开始取图，Globe3D 打开时大概率已就绪 ══ */
 let _earthTexCache=null;
 (function(){
@@ -1550,10 +1573,10 @@ function Globe3D({onClose}){
           {/* 3D image */}
           <div style={{flex:1,position:'relative',display:'flex',alignItems:'center',justifyContent:'center',padding:'0 16px'}}>
             <div style={{position:'relative',width:'100%'}}>
-              <img src={'zbuilding3dimg/zbuilding3d-mr.jpg'} alt="building"
+              <img src={_ZM()} alt="building"
                 style={{width:'100%',height:'auto',objectFit:'contain',display:'block'}}
                 onError={e=>{e.target.style.display='none';}}/>
-              <img src={`zbuilding3dimg/zbuilding3d-l${zbFloor}.jpg`} alt={`floor ${zbFloor}`}
+              <img src={_ZI(zbFloor)} alt={`floor ${zbFloor}`}
                 style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'contain',display:zbImgError?'none':'block'}}
                 onError={()=>setZbImgError(true)}/>
               {zbImgError&&(
@@ -1826,11 +1849,11 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
   const [zBHover,setZBHover]=useState(false);
   const isBuilding=tab==='Floor';
   useEffect(()=>{
-    if(bFloor===0){setBImg('newbuilding3dimg/newbuilding3d-mr.png');return;}
+    if(bFloor===0){setBImg(_BM());return;}
     const img=new Image();
-    img.onload=()=>setBImg(`newbuilding3dimg/newbuilding3d-l${bFloor}.png`);
-    img.onerror=()=>setBImg('newbuilding3dimg/newbuilding3d-mr.png');
-    img.src=`newbuilding3dimg/newbuilding3d-l${bFloor}.png`;
+    img.onload=()=>setBImg(_BI(bFloor));
+    img.onerror=()=>setBImg(_BM());
+    img.src=_BI(bFloor);
   },[bFloor]);
   useEffect(()=>{
     if(zBFloor===0){setZBImg('zone3dimg/Zone3dimg-l1.svg');return;}
@@ -1867,7 +1890,7 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
         <div style={{position:'absolute',inset:0}}>
           {tab==='Campus'?(
             <>
-              <video key="city-video" src="city-view.mp4" poster="city-overview.png" autoPlay loop muted playsInline preload="auto"
+              <video key="city-video" src={_V()} poster="city-overview.png" autoPlay loop muted playsInline preload="auto"
                 style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
               {/* 红框热区：点击进入 Building */}
               <div onClick={()=>{setTab('Building');setBearingVisible(false);onRefresh&&onRefresh();}} title="Enter Building View"
@@ -2052,7 +2075,7 @@ function IntroScreen({onDone}){
   useEffect(()=>{const t=setTimeout(dismiss,8000);return()=>clearTimeout(t);},[]);
   return(
     <div style={{position:'fixed',inset:0,zIndex:1000,background:'#000',opacity:fading?0:1,transition:'opacity .9s ease',pointerEvents:fading?'none':'auto'}}>
-      <video src="city-view.mp4" poster="city-overview.png" autoPlay muted playsInline preload="auto" onEnded={dismiss}
+      <video src={_V()} poster="city-overview.png" autoPlay muted playsInline preload="auto" onEnded={dismiss}
         style={{width:'100%',height:'100%',objectFit:'cover'}}/>
       <button onClick={dismiss} style={{position:'absolute',bottom:32,right:32,padding:'8px 24px',borderRadius:20,background:'rgba(255,255,255,0.12)',border:'1px solid rgba(255,255,255,0.28)',color:'#fff',fontSize:13,fontWeight:500,cursor:'pointer',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',letterSpacing:'0.02em',transition:'background .2s'}}
         onMouseEnter={e=>e.target.style.background='rgba(255,255,255,0.22)'}
