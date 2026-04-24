@@ -84,10 +84,29 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 @keyframes slideIn{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:none}}
 @keyframes slideInR{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-.pa1{animation:fadeUp .6s cubic-bezier(0.4,0,0.2,1) .1s both}
-.pa2{animation:fadeUp .6s cubic-bezier(0.4,0,0.2,1) 2.1s both}
-.pa3{animation:fadeUp .6s cubic-bezier(0.4,0,0.2,1) 2.0s both}
-.pa4{animation:fadeUp .6s cubic-bezier(0.4,0,0.2,1) 2.05s both}
+@keyframes cardSlideInL{from{opacity:0;transform:translateX(-36px) scale(.98);filter:blur(4px)}to{opacity:1;transform:translateX(0) scale(1);filter:blur(0)}}
+@keyframes cardSlideInR{from{opacity:0;transform:translateX(36px) scale(.98);filter:blur(4px)}to{opacity:1;transform:translateX(0) scale(1);filter:blur(0)}}
+@keyframes panelGlowIn{from{opacity:0}to{opacity:1}}
+.pa1{animation:cardSlideInL .7s cubic-bezier(.22,.68,.24,1) .10s both}
+.pa2{animation:cardSlideInL .7s cubic-bezier(.22,.68,.24,1) .20s both}
+.pa3{animation:cardSlideInL .7s cubic-bezier(.22,.68,.24,1) .30s both}
+.pa4{animation:cardSlideInL .7s cubic-bezier(.22,.68,.24,1) .40s both}
+.pa5{animation:cardSlideInR .7s cubic-bezier(.22,.68,.24,1) .20s both}
+.pa6{animation:cardSlideInR .7s cubic-bezier(.22,.68,.24,1) .32s both}
+.pa7{animation:cardSlideInR .7s cubic-bezier(.22,.68,.24,1) .44s both}
+.pa8{animation:cardSlideInR .7s cubic-bezier(.22,.68,.24,1) .56s both}
+.panel-enter-l{animation:panelGlowIn .5s ease-out both}
+.panel-enter-r{animation:panelGlowIn .5s ease-out .05s both}
+/* Right panel fill — pa5/pa6/pa7 stay auto-height; pa8 eats remaining space */
+.pa5,.pa6,.pa7{flex:0 0 auto}
+.pa8{flex:1 1 0;min-height:220px;display:flex;flex-direction:column}
+/* Responsive panel widths */
+@media (min-width:1600px){
+  .rp-desktop{width:420px!important}
+}
+@media (min-width:1920px){
+  .rp-desktop{width:420px!important}
+}
 @keyframes fadeSlideIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:translateX(0)}}
 .floor-in{animation:fadeSlideIn .45s cubic-bezier(0.4,0,0.2,1) both}
 .panel-scroll::-webkit-scrollbar{width:4px}
@@ -116,7 +135,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 }
 @media (max-width:480px){
   /* Even smaller phones */
-  .pa1,.pa2,.pa3,.pa4{animation-delay:0s!important}
+  .pa1,.pa2,.pa3,.pa4,.pa5,.pa6,.pa7,.pa8{animation-delay:0s!important}
 }
 
 .badge-green{display:inline-flex;align-items:center;gap:4px;background:rgba(0,229,160,.12);border:1px solid rgba(0,229,160,.28);border-radius:20px;padding:2px 7px;font-size:11px;font-weight:700;color:var(--green)}
@@ -126,20 +145,21 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .collapse{overflow:hidden;transition:max-height .35s ease,opacity .3s ease}
 @keyframes typingDot{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
 </style>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
 </head>
 <body>
 <div id="root"></div>
 <div id="loading"><div id="loading-ring"></div></div>
 
 <script type="text/babel">
-const {useState,useEffect,useRef,useCallback,createContext,useContext}=React;
+const {useState,useEffect,useLayoutEffect,useRef,useCallback,createContext,useContext}=React;
 
 /* ══ 网络质量检测：决定使用高清资源或压缩资源 ══════════════════════
    HQ  → effectiveType=4g 且不开启省流 → 原始高清资源
    LQ  → 3G/2G 或 API 不可用 或 saveData=true → 压缩资源（默认）
    资源对应关系：
      视频  HQ: city-view-hq.mp4 (12MB)    LQ: city-view.mp4 (3.3MB)
-     建筑图 HQ: newbuilding3dimg-hq/ 4K    LQ: newbuilding3dimg/ 1920
+     建筑图 HQ/LQ: nbuilding3dimg/ (~5.8MB/张，统一使用高清版)
      区域图 HQ: zbuilding3dimg-hq/ .png    LQ: zbuilding3dimg/ .jpg
 ══════════════════════════════════════════════════════════════════ */
 const _HQ=(function(){
@@ -152,8 +172,9 @@ const _HQ=(function(){
 })();
 /* 资源路径工具 */
 const _V  =()=>_HQ?'city-view-hq.mp4':'city-view.mp4';          // 视频
-const _BI =(f)=>_HQ?`newbuilding3dimg-hq/newbuilding3d-l${f}.png`:`newbuilding3dimg/newbuilding3d-l${f}.png`;
-const _BM =()=>_HQ?'newbuilding3dimg-hq/newbuilding3d-mr.png':'newbuilding3dimg/newbuilding3d-mr.png';
+// fbuilding3dimg: HQ=PNG(5.5MB), LQ=JPG(20KB)
+const _BI =(f,hq=_HQ)=>hq?`fbuilding3dimg/newbuilding3d-l${f}.png`:`fbuilding3dimg-lq/newbuilding3d-l${f}.jpg`;
+const _BM =(hq=_HQ)=>hq?'fbuilding3dimg/newbuilding3d-mr.png':'fbuilding3dimg-lq/newbuilding3d-mr.jpg';
 const _ZI =(f)=>_HQ?`zbuilding3dimg-hq/zbuilding3d-l${f}.png`:`zbuilding3dimg/zbuilding3d-l${f}.jpg`;
 const _ZM =()=>_HQ?'zbuilding3dimg-hq/zbuilding3d-mr.png':'zbuilding3dimg/zbuilding3d-mr.jpg';
 
@@ -186,20 +207,20 @@ const E = {
 /* ══════════════════ MOCK DATA ══════════════════════════════════ */
 // 楼层权重（保持原始比例，总和自动缩放至 DAILY_RATE）
 const _FW=[
-  {id:7,label:'7F',w:180,hl:false,pct:18},
-  {id:6,label:'6F',w:210,hl:false,pct:22},
-  {id:5,label:'5F',w:245,hl:false,pct:31},
-  {id:4,label:'4F',w:332,hl:false,pct:-8},
-  {id:3,label:'3F',w:198,hl:false,pct:14},
-  {id:2,label:'2F',w:172,hl:true ,pct:25},
-  {id:1,label:'1F',w:152,hl:false,pct:11},
+  {id:7,label:'6F',w:180,hl:false,pct:18},
+  {id:6,label:'5F',w:210,hl:false,pct:22},
+  {id:5,label:'4F',w:245,hl:false,pct:31},
+  {id:4,label:'3F',w:332,hl:false,pct:-8},
+  {id:3,label:'2F',w:198,hl:false,pct:14},
+  {id:2,label:'1F',w:172,hl:true ,pct:25},
+  {id:1,label:'GF',w:152,hl:false,pct:11},
 ];
 const _WS=_FW.reduce((s,f)=>s+f.w,0); // 1,489
 const FLOORS=_FW.map(f=>{
   const c=Math.round(E.daily*f.w/_WS);
   return{id:f.id,label:f.label,consumption:c,optimized:Math.round(c*(1-f.pct/100)),hl:f.hl,pct:f.pct};
 });
-// 7F:470  6F:550  5F:642  4F:870  3F:519  2F:451  1F:398  ∑=3,900
+// 6F:470  5F:550  4F:642  3F:870  2F:519  1F:451  GF:398  ∑=3,900
 const ZONES=[
   {id:'A',label:'Zone A',name:'Office (North Wing)',   floor:1,consumption:290,optimized:218},
   {id:'B',label:'Zone B',name:'Medical (East Wing)',   floor:2,consumption:340,optimized:255},
@@ -221,6 +242,177 @@ const SAVINGS=[
   {d:'25 Dec',cost:31960, en:3100},
   {d:'30 Dec',cost:24440, en:2100},
 ];
+
+/* ══════════════════ RANGE DATA (Year / Month / Day) ═════════════ */
+// All per-range datasets. Components read RANGE_DATA[range] via useE().
+const RANGE_DATA={
+  Day:{
+    // 8 hourly buckets through today
+    bar:[
+      {t:'00:00',c:48, o:62 },{t:'',     c:42, o:55 },
+      {t:'06:00',c:98, o:128},{t:'',     c:176,o:220},
+      {t:'12:00',c:210,o:264},{t:'',     c:192,o:238},
+      {t:'18:00',c:156,o:198},{t:'Now',  c:88, o:112},
+    ],
+    barYMax:300,
+    // 7 milestones across the day
+    savings:[
+      {d:'00:00',cost:120, en:30 },
+      {d:'04:00',cost:280, en:75 },
+      {d:'08:00',cost:610, en:140},
+      {d:'12:00',cost:980, en:220},
+      {d:'16:00',cost:1340,en:290},
+      {d:'20:00',cost:1080,en:240},
+      {d:'23:00',cost:690, en:160},
+    ],
+    savingsTitle:'Daily Savings',
+    savingsTotals:{cost:840, en:125, co2:5},
+    stats:{
+      gen:    {label:'Daily Generation',   cur:DAILY_RATE,                   opt:Math.round(DAILY_RATE*OPT_RATIO),                   unit:'kWh',    pct:25},
+      peak:   {label:'Peak Power',         cur:27.3,                         opt:22.1,                                                unit:'kW',     pct:19, subLabel:'Peak CH-1', subRight:'Peak: 14:30'},
+      carbon: {label:'Carbon Emission',    cur:Math.round(DAILY_RATE*0.4),   opt:Math.round(DAILY_RATE*0.4*OPT_RATIO),                unit:'kg',     pct:25},
+      inten:  {label:'Energy Intensity',   cur:Math.round(DAILY_RATE*0.09),  opt:Math.round(DAILY_RATE*0.09*OPT_RATIO),               unit:'kWh/m²', pct:25},
+    },
+    costAlloc:{
+      data:[
+        {k:'Admin',     v:30,status:'Near Limit',color:'#5576ef'},
+        {k:'R&D',       v:28,status:'Exceeded',  color:'#22c55e'},
+        {k:'Ops',       v:23,status:'Healthy',   color:'#f59e0b'},
+        {k:'Logistics', v:19,status:'Healthy',   color:'#e879f9'},
+      ],
+      totalLabel:'RM 0.8k',
+    },
+    perCapita:{
+      items:[{k:'Admin',v:5.6},{k:'R&D',v:7.3},{k:'Ops',v:3.3},{k:'Logistics',v:4.0}],
+      avg:5.1, max:9,
+      avgLabel:'RM 5.1',
+      benchmark:'Fixed: Daily Efficiency Benchmark',
+    },
+    savingsVs:{
+      title:'Savings vs Last Day',
+      items:[{k:'Admin',v:-0.1},{k:'R&D',v:-0.05},{k:'Logistics',v:0.18},{k:'Ops',v:0.27}],
+      absMax:0.4,
+      unit:'k',
+      pill:'Fixed: Daily vs Last Day',
+    },
+    orgTrend:{
+      title:'Org Electricity Trend (24h)',
+      labels:Array.from({length:24},(_,i)=>`${i.toString().padStart(2,'0')}:00`),
+      base:[8,7,6,6,7,9,14,22,30,36,40,42,41,40,42,44,42,38,30,22,16,12,10,9],
+      axisUnit:'kW',
+    },
+  },
+
+  Month:{
+    // Existing look & numbers (current default)
+    bar:[
+      {t:'06:00',c:337,o:437},{t:'',c:515,o:564},{t:'12:00',c:445,o:687},{t:'',c:354,o:520},
+      {t:'18:00',c:394,o:540},{t:'',c:466,o:578},{t:'',c:225,o:334},{t:'Now',c:187,o:238},
+    ],
+    barYMax:750,
+    savings:[
+      {d:'1 Dec', cost:6580,  en:900},
+      {d:'5 Dec', cost:13630, en:1500},
+      {d:'10 Dec',cost:29140, en:2400},
+      {d:'15 Dec',cost:44180, en:2900},
+      {d:'20 Dec',cost:26320, en:2300},
+      {d:'25 Dec',cost:31960, en:3100},
+      {d:'30 Dec',cost:24440, en:2100},
+    ],
+    savingsTitle:'Monthly Savings',
+    savingsTotals:{cost:20200, en:2400, co2:135},
+    stats:{
+      gen:    {label:'Daily Generation',   cur:E.daily,   opt:Math.round(E.daily*OPT_RATIO),   unit:'kWh',    pct:25},
+      peak:   {label:'Peak Power',         cur:E.weekly,  opt:Math.round(E.weekly*OPT_RATIO),  unit:'kW',     pct:25, subLabel:'Peak CH-1', subRight:'Peak: 14:30'},
+      carbon: {label:'Carbon Emission',    cur:E.monthly, opt:Math.round(E.monthly*OPT_RATIO), unit:'kg',     pct:25},
+      inten:  {label:'Energy Intensity',   cur:E.yearly,  opt:Math.round(E.yearly*OPT_RATIO),  unit:'kWh/m²', pct:25},
+    },
+    costAlloc:{
+      data:[
+        {k:'Admin',     v:28,status:'Near Limit',color:'#5576ef'},
+        {k:'R&D',       v:26,status:'Exceeded',  color:'#22c55e'},
+        {k:'Ops',       v:24,status:'Near Limit',color:'#f59e0b'},
+        {k:'Logistics', v:22,status:'Healthy',   color:'#e879f9'},
+      ],
+      totalLabel:'RM 0.8k',
+    },
+    perCapita:{
+      items:[{k:'Admin',v:168},{k:'R&D',v:218},{k:'Ops',v:98},{k:'Logistics',v:121}],
+      avg:151, max:250,
+      avgLabel:'RM 151',
+      benchmark:'Fixed: Monthly Efficiency Benchmark',
+    },
+    savingsVs:{
+      title:'Savings vs Last Month',
+      items:[{k:'Admin',v:-3.1},{k:'R&D',v:-1.2},{k:'Logistics',v:5.4},{k:'Ops',v:8.2}],
+      absMax:10,
+      unit:'k',
+      pill:'Fixed: Monthly vs Last Month',
+    },
+    orgTrend:{
+      title:'Org Electricity Trend (24h)',
+      labels:Array.from({length:24},(_,i)=>`${i.toString().padStart(2,'0')}:00`),
+      base:[8,7,6,6,7,9,14,22,30,36,40,42,41,40,42,44,42,38,30,22,16,12,10,9],
+      axisUnit:'kW',
+    },
+  },
+
+  Year:{
+    // 12-month aggregate view (2025)
+    bar:[
+      {t:'Jan',c:3950,o:5100},{t:'',   c:4120,o:5300},
+      {t:'Mar',c:4480,o:5680},{t:'',   c:4960,o:6250},
+      {t:'May',c:5280,o:6520},{t:'',   c:5730,o:7020},
+      {t:'Sep',c:5410,o:6800},{t:'Dec',c:4380,o:5600},
+    ],
+    barYMax:8000,
+    savings:[
+      {d:'Jan',cost:18500, en:2100},
+      {d:'Mar',cost:26800, en:3000},
+      {d:'May',cost:34200, en:3700},
+      {d:'Jul',cost:41600, en:4400},
+      {d:'Sep',cost:38900, en:4100},
+      {d:'Nov',cost:29500, en:3200},
+      {d:'Dec',cost:22100, en:2500},
+    ],
+    savingsTitle:'Yearly Savings',
+    savingsTotals:{cost:242000, en:28800, co2:1620},
+    stats:{
+      gen:    {label:'Yearly Generation',  cur:YEARLY_2025,                    opt:Math.round(YEARLY_2025*OPT_RATIO),                    unit:'kWh',    pct:25},
+      peak:   {label:'Peak Power',         cur:52.8,                            opt:41.6,                                                 unit:'kW',     pct:21, subLabel:'Peak CH-1', subRight:'Peak: Jul 17'},
+      carbon: {label:'Carbon Emission',    cur:Math.round(YEARLY_2025*0.4),     opt:Math.round(YEARLY_2025*0.4*OPT_RATIO),                unit:'kg',     pct:25},
+      inten:  {label:'Energy Intensity',   cur:Math.round(YEARLY_2025*0.09/12), opt:Math.round(YEARLY_2025*0.09/12*OPT_RATIO),            unit:'kWh/m²', pct:25},
+    },
+    costAlloc:{
+      data:[
+        {k:'Admin',     v:27,status:'Near Limit',color:'#5576ef'},
+        {k:'R&D',       v:30,status:'Exceeded',  color:'#22c55e'},
+        {k:'Ops',       v:23,status:'Healthy',   color:'#f59e0b'},
+        {k:'Logistics', v:20,status:'Healthy',   color:'#e879f9'},
+      ],
+      totalLabel:'RM 9.6k',
+    },
+    perCapita:{
+      items:[{k:'Admin',v:2016},{k:'R&D',v:2618},{k:'Ops',v:1178},{k:'Logistics',v:1452}],
+      avg:1815, max:3000,
+      avgLabel:'RM 1,815',
+      benchmark:'Fixed: Yearly Efficiency Benchmark',
+    },
+    savingsVs:{
+      title:'Savings vs Last Year',
+      items:[{k:'Admin',v:-38},{k:'R&D',v:-14},{k:'Logistics',v:65},{k:'Ops',v:98}],
+      absMax:120,
+      unit:'k',
+      pill:'Fixed: Yearly vs Last Year',
+    },
+    orgTrend:{
+      title:'Org Electricity Trend (12m)',
+      labels:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      base:[18,20,24,28,33,40,45,44,38,30,24,20],
+      axisUnit:'MWh',
+    },
+  },
+};
 
 /* ══════════════════ ERROR BOUNDARY ═════════════════════════════ */
 class ErrorBoundary extends React.Component{
@@ -251,6 +443,9 @@ function EProvider({children}){
   const [floors,setFloors]=useState(()=>FLOORS.map(f=>({...f,live:f.consumption,alert:false})));
   const [active,setActive]=useState(2);
   const [tab,setTab]=useState('Campus');
+  const [range,setRange]=useState('Month');
+  const [ecTop,setEcTop]=useState(68);
+  const [introReady,setIntroReady]=useState(false);
   useEffect(()=>{
     const id=setInterval(()=>{
       setFloors(prev=>prev.map(f=>{
@@ -266,7 +461,7 @@ function EProvider({children}){
     },3000);
     return ()=>clearInterval(id);
   },[]);
-  return <ECtx.Provider value={{floors,active,setActive,tab,setTab}}>{children}</ECtx.Provider>;
+  return <ECtx.Provider value={{floors,active,setActive,tab,setTab,range,setRange,ecTop,setEcTop,introReady,setIntroReady}}>{children}</ECtx.Provider>;
 }
 
 /* ══════════════════ TOP NAV ═════════════════════════════════════ */
@@ -611,19 +806,34 @@ function AISuggestionPanel(){
 
 /* ══════════════════ ENERGY CHART ════════════════════════════════ */
 function EnergyChart(){
-  const {floors,active,tab}=useE();
+  const {floors,active,tab,range,setEcTop,introReady}=useE();
   const af=floors.find(f=>f.id===active);
   const isFloor=tab==='Floor'&&af;
+  const rd=RANGE_DATA[range];
   const ratio=isFloor?af.consumption/E.daily:1;
-  const bars=BAR.map(d=>({t:d.t,c:Math.round(d.c*ratio),o:Math.round(d.o*ratio)}));
-  const yMax=isFloor?Math.ceil((Math.max(...bars.map(d=>d.o))*1.3)/50)*50:750;
+  const bars=rd.bar.map(d=>({t:d.t,c:Math.round(d.c*ratio),o:Math.round(d.o*ratio)}));
+  const yMax=isFloor?Math.ceil((Math.max(...bars.map(d=>d.o))*1.3)/50)*50:rd.barYMax;
   const ref=useRef(null);
   const chartRef=useRef(null);
-  const firstMount=useRef(true);
+  const outerRef=useRef(null);
+  // Measure offsetTop so the right panel's Cost Allocation header aligns exactly
+  useLayoutEffect(()=>{
+    if(!outerRef.current)return;
+    const update=()=>{
+      if(outerRef.current) setEcTop(outerRef.current.offsetTop);
+    };
+    update();
+    const ro=new ResizeObserver(update);
+    // Watch the scroll-container (parent of pa1+pa2+...) for size changes (AI card shown/dismissed)
+    const container=outerRef.current.parentElement;
+    if(container) ro.observe(container);
+    return()=>ro.disconnect();
+  },[]);
   useEffect(()=>{
     if(!ref.current)return;
     // Re-render: update existing chart in-place (no destroy/recreate)
     if(chartRef.current){
+      chartRef.current.data.labels=bars.map(d=>d.t);
       chartRef.current.data.datasets[0].data=bars.map(d=>d.o);
       chartRef.current.data.datasets[1].data=bars.map(d=>d.c);
       chartRef.current.options.scales.y.max=yMax;
@@ -631,20 +841,16 @@ function EnergyChart(){
       chartRef.current.update('active');
       return;
     }
-    // First mount: create chart after entrance delay
-    let timer;
-    const delay=firstMount.current?2100:0;
-    firstMount.current=false;
-    timer=setTimeout(()=>{
-    if(!ref.current)return;
+    // Create chart only after intro is dismissed
+    if(!introReady)return;
     chartRef.current=new Chart(ref.current.getContext('2d'),{
       type:'bar',
       plugins:[ChartDataLabels],
       data:{
         labels:bars.map(d=>d.t),
         datasets:[
-          {label:'Currently',       data:bars.map(d=>d.o),backgroundColor:'rgba(148,163,200,0.55)',borderRadius:3,barPercentage:.62,categoryPercentage:.82},
-          {label:'After applying AI suggestions',data:bars.map(d=>d.c),backgroundColor:'#5576ef',borderRadius:3,barPercentage:.38,categoryPercentage:.82},
+          {label:'Baseline',       data:bars.map(d=>d.o),backgroundColor:'rgba(148,163,200,0.55)',borderRadius:3,barPercentage:.62,categoryPercentage:.82},
+          {label:'Actual Value',data:bars.map(d=>d.c),backgroundColor:'#5576ef',borderRadius:3,barPercentage:.38,categoryPercentage:.82},
         ],
       },
       options:{
@@ -674,19 +880,17 @@ function EnergyChart(){
           delay:ctx=>ctx.type==='data'?ctx.dataIndex*80:0},
       },
     });
-    },delay);
-    return()=>clearTimeout(timer);
-  },[active,tab]);
+  },[active,tab,range,introReady]);
   // Destroy only on unmount
   useEffect(()=>()=>{chartRef.current?.destroy();},[]);
   return(
-    <div className="pa2">
+    <div className="pa2" ref={outerRef}>
       <div style={{height:40,display:'flex',alignItems:'center'}}>
         <span style={{fontSize:16,fontWeight:600}}>Energy Consumption</span>
       </div>
       <div style={{background:'rgba(24,25,31,0.90)',borderRadius:10,backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',padding:16}}>
         <div style={{display:'flex',gap:14,marginBottom:12}}>
-          {[['rgba(148,163,200,0.75)','Currently'],['#5576ef','After applying AI suggestions']].map(([c,l])=>(
+          {[['rgba(148,163,200,0.75)','Baseline'],['#5576ef','Actual Value']].map(([c,l])=>(
             <div key={l} style={{display:'flex',alignItems:'center',gap:5}}>
               <div style={{width:8,height:8,borderRadius:2,background:c}}/>
               <span style={{fontSize:10,color:'var(--muted)'}}>{l}</span>
@@ -719,7 +923,7 @@ function RedDot(){
     </div>
   );
 }
-function Card({label,cur,opt,unit,delay=0,pct=25}){
+function Card({label,cur,opt,unit,delay=0,pct=25,subLabel=null,subRight=null}){
   const[count,done]=useCountUp(cur,3150,delay);
   const display=done?cur:count;
   const isNeg=pct<0;
@@ -733,36 +937,43 @@ function Card({label,cur,opt,unit,delay=0,pct=25}){
         <p style={{fontSize:12,color:'rgba(255,255,255,0.45)',margin:0}}>{label}</p>
       </div>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-        <span style={{fontSize:13,fontWeight:500,color:'#8098f6'}}>{fmt(opt)} {unit}</span>
-        <div style={{display:'flex',alignItems:'center',gap:4}}>
-          <span style={{fontSize:13,fontWeight:500,color:isNeg?'#ef4444':'#22c55e'}}>{isNeg?pct:`+${pct}`}%</span>
-          {isNeg?<RedDot/>:<GreenDot/>}
-        </div>
+        {subLabel
+          ? <span style={{fontSize:11,fontWeight:500,color:'#8098f6',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:'55%'}}>{subLabel}</span>
+          : <span style={{fontSize:13,fontWeight:500,color:'#8098f6'}}>{fmt(opt)} {unit}</span>
+        }
+        {subRight
+          ? <span style={{fontSize:11,fontWeight:500,color:'rgba(255,255,255,0.55)',flexShrink:0}}>{subRight}</span>
+          : <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <span style={{fontSize:13,fontWeight:500,color:isNeg?'#ef4444':'#22c55e'}}>{isNeg?pct:`+${pct}`}%</span>
+              {isNeg?<RedDot/>:<GreenDot/>}
+            </div>
+        }
       </div>
     </div>
   );
 }
 function StatsCards(){
-  const {floors,active,tab}=useE();
+  const {floors,active,tab,range}=useE();
   const af=floors.find(f=>f.id===active);
+  const s=RANGE_DATA[range].stats;
   if(tab==='Floor'&&af){
     const d=af.live;
     const r=1-af.pct/100;
     return(
       <div className="pa3" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-        <Card key={`${active}-d`} label="Daily consumption"   cur={d}     opt={Math.round(d*r)}     unit="kWh" delay={0}   pct={af.pct}/>
-        <Card key={`${active}-w`} label="Weekly consumption"  cur={d*7}   opt={Math.round(d*7*r)}   unit="kWh" delay={50}  pct={af.pct}/>
-        <Card key={`${active}-m`} label="Monthly consumption" cur={d*30}  opt={Math.round(d*30*r)}  unit="kWh" delay={100} pct={af.pct}/>
-        <Card key={`${active}-y`} label="Yearly consumption"  cur={d*365} opt={Math.round(d*365*r)} unit="kWh" delay={150} pct={af.pct}/>
+        <Card key={`${active}-${range}-d`} label={s.gen.label}    cur={d}     opt={Math.round(d*r)}     unit="kWh" delay={0}   pct={af.pct}/>
+        <Card key={`${active}-${range}-w`} label={s.peak.label}   cur={d*7}   opt={Math.round(d*7*r)}   unit="kW"  delay={50}  pct={af.pct} subLabel={s.peak.subLabel} subRight={s.peak.subRight}/>
+        <Card key={`${active}-${range}-m`} label={s.carbon.label} cur={d*30}  opt={Math.round(d*30*r)}  unit="kg"  delay={100} pct={af.pct}/>
+        <Card key={`${active}-${range}-y`} label={s.inten.label}  cur={d*365} opt={Math.round(d*365*r)} unit="kWh/m²" delay={150} pct={af.pct}/>
       </div>
     );
   }
   return(
     <div className="pa3" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-      <Card label="Daily consumption"   cur={E.daily}   opt={Math.round(E.daily*OPT_RATIO)}   unit="kWh" delay={2000}/>
-      <Card label="Weekly consumption"  cur={E.weekly}  opt={Math.round(E.weekly*OPT_RATIO)}  unit="kWh" delay={2050}/>
-      <Card label="Monthly consumption" cur={E.monthly} opt={Math.round(E.monthly*OPT_RATIO)} unit="kWh" delay={2100}/>
-      <Card label="Yearly consumption"  cur={E.yearly}  opt={Math.round(E.yearly*OPT_RATIO)}  unit="kWh" delay={2150}/>
+      <Card key={`${range}-gen`}    label={s.gen.label}    cur={s.gen.cur}    opt={s.gen.opt}    unit={s.gen.unit}    delay={0}   pct={s.gen.pct}/>
+      <Card key={`${range}-peak`}   label={s.peak.label}   cur={s.peak.cur}   opt={s.peak.opt}   unit={s.peak.unit}   delay={50}  pct={s.peak.pct} subLabel={s.peak.subLabel} subRight={s.peak.subRight}/>
+      <Card key={`${range}-carbon`} label={s.carbon.label} cur={s.carbon.cur} opt={s.carbon.opt} unit={s.carbon.unit} delay={100} pct={s.carbon.pct}/>
+      <Card key={`${range}-inten`}  label={s.inten.label}  cur={s.inten.cur}  opt={s.inten.opt}  unit={s.inten.unit}  delay={150} pct={s.inten.pct}/>
     </div>
   );
 }
@@ -826,7 +1037,7 @@ const lineDrawPlugin={
 const crosshairPlugin={
   id:'crosshair',
   afterDraw(chart){
-    if(chart.tooltip._active&&chart.tooltip._active.length){
+    if(chart.tooltip&&chart.tooltip._active&&chart.tooltip._active.length){
       const ctx=chart.ctx,x=chart.tooltip._active[0].element.x;
       const {top,bottom}=chart.chartArea;
       ctx.save();ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,bottom);
@@ -835,21 +1046,20 @@ const crosshairPlugin={
   }
 };
 function SavingsChart(){
-  const {floors,active,tab}=useE();
+  const {floors,active,tab,range,introReady}=useE();
   const af=floors.find(f=>f.id===active);
   const isFloor=tab==='Floor'&&af;
+  const rd=RANGE_DATA[range];
   const ratio=isFloor?af.consumption/E.daily:1;
-  const savings=SAVINGS.map(d=>({d:d.d,cost:Math.round(d.cost*ratio),en:Math.round(d.en*ratio)}));
-  const costTotal=isFloor?Math.round(20200*ratio):20200;
-  const enTotal=isFloor?Math.round(2400*ratio):2400;
-  const co2Total=isFloor?Math.round(135*ratio):135;
+  const savings=rd.savings.map(d=>({d:d.d,cost:Math.round(d.cost*ratio),en:Math.round(d.en*ratio)}));
+  const costTotal=isFloor?Math.round(rd.savingsTotals.cost*ratio):rd.savingsTotals.cost;
+  const enTotal=isFloor?Math.round(rd.savingsTotals.en*ratio):rd.savingsTotals.en;
+  const co2Total=isFloor?Math.round(rd.savingsTotals.co2*ratio):rd.savingsTotals.co2;
   const fmtSav=v=>v>=1000?`${(v/1000).toFixed(1)}k`:String(v);
   const ref=useRef(null);
-  const firstMount=useRef(true);
   useEffect(()=>{
     if(!ref.current) return;
-    const delay=firstMount.current?2050:0;
-    firstMount.current=false;
+    if(!introReady) return;
     const _maxCost = Math.max(...savings.map(d=>d.cost));
     const _mag     = Math.pow(10, Math.floor(Math.log10(_maxCost||1)));
     const _niceMax = Math.ceil(_maxCost / _mag) * _mag;
@@ -898,23 +1108,21 @@ function SavingsChart(){
     });
     ch._lineProgress=0;
     let raf;
-    const drawTimer=setTimeout(()=>{
-      const s=performance.now(),dur=1500;
-      function step(now){
-        const p=Math.min((now-s)/dur,1);
-        ch._lineProgress=p<0.5?2*p*p:-1+(4-2*p)*p;
-        ch.draw();
-        if(p<1)raf=requestAnimationFrame(step);
-        else delete ch._lineProgress;
-      }
-      raf=requestAnimationFrame(step);
-    },delay);
-    return()=>{clearTimeout(drawTimer);cancelAnimationFrame(raf);ch.destroy();};
-  },[active,tab]);
+    const s=performance.now(),dur=1500;
+    function step(now){
+      const p=Math.min((now-s)/dur,1);
+      ch._lineProgress=p<0.5?2*p*p:-1+(4-2*p)*p;
+      ch.draw();
+      if(p<1)raf=requestAnimationFrame(step);
+      else delete ch._lineProgress;
+    }
+    raf=requestAnimationFrame(step);
+    return()=>{cancelAnimationFrame(raf);ch.destroy();};
+  },[active,tab,range,introReady]);
   return(
     <div className="pa4" style={{flex:1,display:'flex',flexDirection:'column',minHeight:220}}>
       <div style={{height:40,display:'flex',alignItems:'center'}}>
-        <span style={{fontSize:16,fontWeight:600}}>Monthly Savings</span>
+        <span style={{fontSize:16,fontWeight:600}}>{rd.savingsTitle}</span>
       </div>
       <div style={{flex:1,display:'flex',flexDirection:'column',background:'rgba(24,25,31,0.90)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',borderRadius:10,padding:16,minHeight:0,gap:12}}>
         <div style={{display:'flex',gap:16}}>
@@ -964,6 +1172,17 @@ function useMobile(){
   },[]);
   return m;
 }
+// Returns the right-panel width that CSS media queries will apply
+function useRpWidth(){
+  const get=()=>420;
+  const [w,setW]=useState(get);
+  useEffect(()=>{
+    const onR=()=>setW(get());
+    window.addEventListener('resize',onR);
+    return()=>window.removeEventListener('resize',onR);
+  },[]);
+  return w;
+}
 
 function FloorSelector({panelVisible=true}){
   const {active,setActive}=useE();
@@ -971,8 +1190,8 @@ function FloorSelector({panelVisible=true}){
   const leftPos=isMobile?8:(panelVisible?420:20);
   return(
     <div style={{position:'absolute',left:leftPos,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:isMobile?4:8,zIndex:10,width:36,transition:'left 0.4s cubic-bezier(0.4,0,0.2,1)'}}>
-      {[7,6,5,4,3,2,1].map((f,i)=>(
-        <button key={f} onClick={()=>setActive(f)} className="floor-in" style={{animationDelay:`${i*60}ms`,background:active===f?'#18191f':'none',border:'none',cursor:'pointer',fontSize:isMobile?13:16,fontWeight:active===f?700:400,color:active===f?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'background .15s, color .15s, font-weight .15s'}}>{f}F</button>
+      {FLOORS.map((fl,i)=>(
+        <button key={fl.id} onClick={()=>setActive(fl.id)} className="floor-in" style={{animationDelay:`${i*60}ms`,background:active===fl.id?'#18191f':'none',border:'none',cursor:'pointer',fontSize:isMobile?13:16,fontWeight:active===fl.id?700:400,color:active===fl.id?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'background .15s, color .15s, font-weight .15s'}}>{fl.label}</button>
       ))}
     </div>
   );
@@ -1581,7 +1800,7 @@ function Globe3D({onClose}){
                 onError={()=>setZbImgError(true)}/>
               {zbImgError&&(
                 <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:6,background:'rgba(0,229,160,0.05)',border:'1px dashed rgba(0,229,160,0.22)'}}>
-                  <div style={{color:'#00e5a0',fontSize:30,fontWeight:700}}>{zbFloor}F</div>
+                  <div style={{color:'#00e5a0',fontSize:30,fontWeight:700}}>{af.label}</div>
                   <div style={{color:'rgba(255,255,255,0.28)',fontSize:10,marginTop:4}}>Layer not available</div>
                 </div>
               )}
@@ -1657,65 +1876,138 @@ function Globe3D({onClose}){
 }
 
 /* ══════════════════ MAP CONTROLS ════════════════════════════════ */
-const bs={width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(24,25,31,0.90)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:8,color:'var(--muted)',cursor:'pointer'};
+const bs={width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(24,25,31,0.90)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:18,color:'var(--muted)',cursor:'pointer'};
 function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab,onToggleBearing,bearingVisible}){
   const [spinning,setSpinning]=useState(false);
+  const [toolOpen,setToolOpen]=useState(false);
+  const [aiOpen,setAiOpen]=useState(false);
   function handleRefresh(){
     if(spinning)return;
     setSpinning(true);
     onRefresh&&onRefresh();
     setTimeout(()=>setSpinning(false),600);
   }
+  const itemSt={display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:8,cursor:'pointer',fontSize:12,fontWeight:500,color:'rgba(255,255,255,0.85)',background:'transparent',border:'none',width:'100%',textAlign:'left',transition:'background .15s'};
+  const dividerSt={borderTop:'1px solid rgba(255,255,255,0.08)',margin:'4px 6px'};
   return(<>
-    <div style={{position:'absolute',right:20,bottom:156,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
-      {/* Refresh button */}
-      <button title={`Refresh ${tab||''}`} onClick={handleRefresh}
-        style={{...bs,transition:'background .15s',position:'relative'}}
-        onMouseEnter={e=>e.currentTarget.style.background='rgba(40,42,55,0.95)'}
-        onMouseLeave={e=>e.currentTarget.style.background='rgba(24,25,31,0.90)'}>
-        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
-          style={{transition:'transform .6s ease',transform:spinning?'rotate(360deg)':'rotate(0deg)'}}>
-          <polyline points="23 4 23 10 17 10"/>
-          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-        </svg>
-      </button>
+    {/* Top-right: Fullscreen (standalone) */}
+    <button title="Fullscreen" onClick={()=>{
+      const el=document.documentElement;
+      if(!document.fullscreenElement){
+        (el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen).call(el);
+      } else {
+        (document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen).call(document);
+      }
+    }} style={{...bs,position:'absolute',top:16,right:104,zIndex:50}}
+      onMouseEnter={e=>e.currentTarget.style.background='rgba(40,42,55,0.95)'}
+      onMouseLeave={e=>e.currentTarget.style.background='rgba(24,25,31,0.90)'}>
+      <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="15 3 21 3 21 9"/>
+        <polyline points="9 21 3 21 3 15"/>
+        <line x1="21" y1="3" x2="14" y2="10"/>
+        <line x1="3" y1="21" x2="10" y2="14"/>
+      </svg>
+    </button>
 
-      <button onClick={()=>{
-        const el=document.documentElement;
-        if(!document.fullscreenElement){
-          (el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen).call(el);
-        } else {
-          (document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen).call(document);
-        }
-      }} style={{...bs}}>
-        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="15 3 21 3 21 9"/>
-          <polyline points="9 21 3 21 3 15"/>
-          <line x1="21" y1="3" x2="14" y2="10"/>
-          <line x1="3" y1="21" x2="10" y2="14"/>
-        </svg>
-      </button>
-    </div>
-    <div style={{position:'absolute',right:20,bottom:20,display:'flex',flexDirection:'column',gap:12,zIndex:10}}>
-      <button onClick={onToggle3D} style={{...bs,fontSize:11,fontWeight:700,color:'var(--text)'}}>3D</button>
-      {/* Bearing monitor toggle */}
-      <button title={bearingVisible?'隐藏监测卡':'显示监测卡'} onClick={onToggleBearing}
-        style={{...bs,opacity:bearingVisible?1:0.45,transition:'opacity .2s'}}
+    {/* Top-right: Tools dropdown (left of app-icon) */}
+    <div style={{position:'absolute',top:16,right:60,zIndex:60}}>
+      <button title="More Tools" onClick={()=>setToolOpen(o=>!o)}
+        style={{...bs,background:toolOpen?'rgba(40,42,55,0.95)':'rgba(24,25,31,0.90)',border:toolOpen?'1px solid rgba(255,255,255,0.18)':'1px solid rgba(255,255,255,0.08)',transition:'background .15s,border .15s'}}
         onMouseEnter={e=>e.currentTarget.style.background='rgba(40,42,55,0.95)'}
-        onMouseLeave={e=>e.currentTarget.style.background='rgba(24,25,31,0.90)'}>
-        {/* bearing icon: arc + 3 dots */}
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-          <circle cx="12" cy="12" r="9"/>
-          <circle cx="12" cy="12" r="3"/>
-          <circle cx="12" cy="3.5" r="1.4" fill="currentColor" stroke="none"/>
-          <circle cx="19.8" cy="16" r="1.4" fill="currentColor" stroke="none"/>
-          <circle cx="4.2" cy="16" r="1.4" fill="currentColor" stroke="none"/>
+        onMouseLeave={e=>e.currentTarget.style.background=toolOpen?'rgba(40,42,55,0.95)':'rgba(24,25,31,0.90)'}>
+        <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round">
+          <circle cx="5"  cy="12" r="1.2" fill="currentColor"/>
+          <circle cx="12" cy="12" r="1.2" fill="currentColor"/>
+          <circle cx="19" cy="12" r="1.2" fill="currentColor"/>
         </svg>
       </button>
-      <button onClick={onTogglePanel} style={{...bs,opacity:panelVisible?1:0.5}}>
-        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-      </button>
+      {toolOpen&&(
+        <div style={{position:'absolute',top:44,right:0,minWidth:190,background:'rgba(13,21,36,0.97)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:10,padding:6,boxShadow:'0 8px 28px rgba(0,0,0,0.55)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',display:'flex',flexDirection:'column',gap:2}}>
+          {/* Panel Toggle */}
+          <button style={{...itemSt,opacity:panelVisible?1:0.6}}
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+            onClick={()=>{onTogglePanel&&onTogglePanel();setToolOpen(false);}}>
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <line x1="9" y1="3" x2="9" y2="21"/>
+            </svg>
+            Panel
+          </button>
+          {/* AI Suggestion */}
+          <button style={{...itemSt,color:aiOpen?'rgba(0,229,220,0.95)':'rgba(255,255,255,0.85)'}}
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+            onClick={()=>{setAiOpen(o=>!o);setToolOpen(false);}}>
+            <svg width="14" height="14" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="50,2 90,68 10,68" fill="rgba(0,229,220,0.92)"/>
+              <polygon points="50,98 10,32 90,32" fill="rgba(0,200,255,0.85)"/>
+              <polygon points="10,68 30,32 50,68" fill="rgba(0,210,120,0.9)"/>
+              <polygon points="90,68 70,32 50,68" fill="rgba(230,0,200,0.85)"/>
+            </svg>
+            AI Suggestion
+          </button>
+          {/* divider */}
+          <div style={dividerSt}/>
+          {/* Map */}
+          <button style={itemSt}
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+            onClick={()=>{onTogglePanel&&onTogglePanel();setToolOpen(false);}}>
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="1 6 8 3 16 6 23 3 23 18 16 21 8 18 1 21 1 6"/>
+              <line x1="8" y1="3" x2="8" y2="18"/>
+              <line x1="16" y1="6" x2="16" y2="21"/>
+            </svg>
+            Map
+          </button>
+          {/* 3D */}
+          <button style={itemSt}
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+            onClick={()=>{onToggle3D&&onToggle3D();setToolOpen(false);}}>
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            3D View
+          </button>
+          {/* Refresh */}
+          <button style={itemSt}
+            onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.07)'}
+            onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+            onClick={()=>{handleRefresh();setToolOpen(false);}}>
+            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+              style={{transition:'transform .6s ease',transform:spinning?'rotate(360deg)':'rotate(0deg)'}}>
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+      )}
+      {/* AI Suggestion panel — floats below dropdown when open */}
+      {aiOpen&&(
+        <div style={{position:'absolute',top:44,right:0,width:340,background:'rgba(13,21,36,0.96)',border:'1px solid rgba(77,138,240,0.28)',borderRadius:12,boxShadow:'0 8px 28px rgba(0,0,0,0.55)',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',padding:'4px 16px 12px',zIndex:61}}>
+          <div style={{display:'flex',justifyContent:'flex-end',marginTop:6}}>
+            <button onClick={()=>setAiOpen(false)} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.55)',cursor:'pointer',fontSize:16,lineHeight:1,padding:2}}>×</button>
+          </div>
+          <AISuggestionPanel/>
+        </div>
+      )}
     </div>
+
+    {/* Bottom-center: bearing monitor toggle */}
+    <button title={bearingVisible?'隐藏监测卡':'显示监测卡'} onClick={onToggleBearing}
+      style={{...bs,position:'absolute',bottom:20,left:'50%',transform:'translateX(-50%)',zIndex:10,opacity:bearingVisible?1:0.45,transition:'opacity .2s'}}
+      onMouseEnter={e=>e.currentTarget.style.background='rgba(40,42,55,0.95)'}
+      onMouseLeave={e=>e.currentTarget.style.background='rgba(24,25,31,0.90)'}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="4 14 12 6 20 14"/>
+        <polyline points="4 20 12 12 20 20"/>
+      </svg>
+    </button>
   </>);
 }
 
@@ -1834,13 +2126,14 @@ const VIEW_IMGS={
 };
 
 /* ══════════════════ BUILDING VIEW ═══════════════════════════════ */
-function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefresh}){
-  const {setActive:setCtxFloorActive,tab,setTab}=useE();
+function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefresh,onRangeChange}){
+  const {setActive:setCtxFloorActive,tab,setTab,range,setRange}=useE();
+  const rpW=useRpWidth();
   const [tabBarVisible,setTabBarVisible]=useState(false);
   const [bearingVisible,setBearingVisible]=useState(false);
   const [viewModalOpen,setViewModalOpen]=useState(null);
   const [bFloor,setBFloor]=useState(5);
-  const [bImg,setBImg]=useState('newbuilding3dimg/newbuilding3d-mr.png');
+  const [bImg,setBImg]=useState(_BM(false));
   const [bHover,setBHover]=useState(false);
   const [zZone,setZZone]=useState('A');
   const [zHover,setZHover]=useState(false);
@@ -1850,10 +2143,20 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
   const isBuilding=tab==='Floor';
   useEffect(()=>{
     if(bFloor===0){setBImg(_BM());return;}
-    const img=new Image();
-    img.onload=()=>setBImg(_BI(bFloor));
-    img.onerror=()=>setBImg(_BM());
-    img.src=_BI(bFloor);
+    let cancelled=false;
+    // 1. 先立即显示 LQ（低清）
+    const lqSrc=_BI(bFloor,false);
+    const lqImg=new Image();
+    lqImg.onload=()=>{if(!cancelled)setBImg(lqSrc);};
+    lqImg.onerror=()=>{if(!cancelled)setBImg(_BM(false));};
+    lqImg.src=lqSrc;
+    // 2. 后台并行加载 HQ（高清），加载完成后自动替换（不管网络状态，成功了就升级）
+    const hqSrc=_BI(bFloor,true);
+    const hqImg=new Image();
+    hqImg.onload=()=>{if(!cancelled)setBImg(hqSrc);};
+    // HQ 加载失败静默忽略，保持 LQ 展示
+    hqImg.src=hqSrc;
+    return()=>{cancelled=true;};
   },[bFloor]);
   useEffect(()=>{
     if(zBFloor===0){setZBImg('zone3dimg/Zone3dimg-l1.svg');return;}
@@ -1864,14 +2167,26 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
   },[zBFloor]);
   return(
     <div style={{position:'absolute',inset:0}}>
+      {/* Year / Month / Day range selector */}
+      <div style={{position:'absolute',top:tabBarVisible?60:16,left:'50%',transform:'translateX(-50%)',zIndex:11,display:'flex',alignItems:'center',gap:2,background:'rgba(6,10,20,0.60)',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',borderRadius:100,padding:'3px 4px',border:'1px solid rgba(255,255,255,0.08)',boxShadow:'0 2px 12px rgba(0,0,0,0.4)',transition:'top .35s cubic-bezier(0.4,0,0.2,1)'}}>
+        {['Year','Month','Day'].map(r=>{
+          const a=r===range;
+          return(
+            <button key={r} onClick={()=>{setRange(r);onRangeChange&&onRangeChange();}}
+              style={{padding:'4px 16px',borderRadius:100,fontSize:12,fontWeight:a?700:500,color:a?'#fff':'rgba(255,255,255,0.7)',background:a?'#16171a':'transparent',border:'none',cursor:'pointer',transition:'all .15s',letterSpacing:'0.01em',lineHeight:'20px'}}>
+              {r}
+            </button>
+          );
+        })}
+      </div>
       <div style={{position:'absolute',top:16,left:'50%',transform:`translateX(-50%) translateY(${tabBarVisible?0:-60}px)`,opacity:tabBarVisible?1:0,pointerEvents:tabBarVisible?'auto':'none',display:'flex',alignItems:'center',gap:2,zIndex:10,background:'rgba(6,10,20,0.55)',borderRadius:100,padding:'2px 6px 2px 2px',width:'min(660px,calc(100vw - 120px))',overflowX:'auto',transition:'transform .35s cubic-bezier(0.4,0,0.2,1), opacity .35s'}}>
         {['Campus','Building','Floor','Zone'].map(t=>{const a=t===tab;return(
           <button key={t} onClick={()=>{setTab(t);setBearingVisible(false);onRefresh&&onRefresh();}} style={{flex:1,padding:'5px 10px',borderRadius:100,fontSize:'clamp(12px,1.4vw,16px)',fontWeight:a?700:400,color:a?'#fff':'rgba(255,255,255,0.85)',background:a?'#16171a':'transparent',border:'none',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap'}}>{t}</button>
         );})}
       </div>
-      {/* Tab bar toggle button — top right, left of app icon */}
+      {/* Tab bar toggle button — top LEFT, leftmost position */}
       <button title={tabBarVisible?'隐藏导航栏':'显示导航栏'} onClick={()=>setTabBarVisible(v=>!v)}
-        style={{position:'absolute',top:16,right:60,zIndex:50,width:36,height:36,borderRadius:18,background:tabBarVisible?'rgba(24,25,31,0.90)':'rgba(99,102,241,0.25)',border:`1px solid ${tabBarVisible?'rgba(255,255,255,0.12)':'rgba(99,102,241,0.6)'}`,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',transition:'background .2s, border .2s, box-shadow .2s',boxShadow:tabBarVisible?'none':'0 0 10px rgba(99,102,241,0.4)'}}
+        style={{position:'absolute',top:16,left:20,zIndex:50,width:36,height:36,borderRadius:18,background:tabBarVisible?'rgba(24,25,31,0.90)':'rgba(99,102,241,0.25)',border:`1px solid ${tabBarVisible?'rgba(255,255,255,0.12)':'rgba(99,102,241,0.6)'}`,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',transition:'background .2s, border .2s, box-shadow .2s',boxShadow:tabBarVisible?'none':'0 0 10px rgba(99,102,241,0.4)'}}
         onMouseEnter={e=>e.currentTarget.style.background=tabBarVisible?'rgba(40,42,55,0.95)':'rgba(99,102,241,0.4)'}
         onMouseLeave={e=>e.currentTarget.style.background=tabBarVisible?'rgba(24,25,31,0.90)':'rgba(99,102,241,0.25)'}>
         <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinejoin="round" strokeLinecap="round" style={{color:tabBarVisible?'rgba(255,255,255,0.7)':'rgba(99,102,241,1)'}}>
@@ -1913,10 +2228,10 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
             <div style={{position:'absolute',left:'calc(53.28% + 113px)',top:'calc(22.13% + 41px)',width:1,height:'calc(16.87% - 46px)',background:'rgba(255,255,255,0.45)',zIndex:9}}/>
             <div style={{position:'absolute',left:'calc(53.28% + 108px)',top:'calc(39% - 5px)',width:10,height:10,borderRadius:'50%',border:'1.5px solid rgba(255,255,255,0.65)',background:'rgba(24,25,31,0.5)',zIndex:9}}/>
 
-            {/* ── Floor selector: 7F–1F ── */}
+            {/* ── Floor selector: 6F–GF ── */}
             <div style={{position:'absolute',left:panelVisible?420:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,width:36,transition:'left 0.4s cubic-bezier(0.4,0,0.2,1)'}}>
-              {[7,6,5,4,3,2,1].map((f,i)=>(
-                <button key={f} onClick={()=>setZBFloor(f)} className="floor-in" style={{animationDelay:`${i*60}ms`,background:zBFloor===f?'#18191f':'none',border:'none',cursor:'pointer',fontSize:16,fontWeight:zBFloor===f?700:400,color:zBFloor===f?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'background .15s, color .15s, font-weight .15s'}}>{f}F</button>
+              {FLOORS.map((fl,i)=>(
+                <button key={fl.id} onClick={()=>setZBFloor(fl.id)} className="floor-in" style={{animationDelay:`${i*60}ms`,background:zBFloor===fl.id?'#18191f':'none',border:'none',cursor:'pointer',fontSize:16,fontWeight:zBFloor===fl.id?700:400,color:zBFloor===fl.id?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'background .15s, color .15s, font-weight .15s'}}>{fl.label}</button>
               ))}
             </div>
 
@@ -1937,7 +2252,7 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
                     borderRadius:12,padding:17,width:184,
                     pointerEvents:'auto',display:'flex',flexDirection:'column',gap:12}}>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-                      <span style={{fontSize:14,fontWeight:700,color:'#fff'}}>{zBFloor} Floor</span>
+                      <span style={{fontSize:14,fontWeight:700,color:'#fff'}}>{floorData.label.replace('F',' Floor')}</span>
                       <button
                         title={'View Floor Plan'}
                         onClick={()=>{setCtxFloorActive(zBFloor);setTab('Floor');}}
@@ -1996,8 +2311,8 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
 
             {/* ── Floor selector ── */}
             <div style={{position:'absolute',left:panelVisible?420:20,top:'50%',transform:'translateY(-50%)',display:'flex',flexDirection:'column',gap:8,zIndex:10,width:36,transition:'left 0.4s cubic-bezier(0.4,0,0.2,1)'}}>
-              {[7,6,5,4,3,2,1].map((f,i)=>(
-                <button key={f} onClick={()=>setBFloor(f)} className="floor-in" style={{animationDelay:`${i*60}ms`,background:bFloor===f?'#18191f':'none',border:'none',cursor:'pointer',fontSize:16,fontWeight:bFloor===f?700:400,color:bFloor===f?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'background .15s, color .15s, font-weight .15s'}}>{f}F</button>
+              {FLOORS.map((fl,i)=>(
+                <button key={fl.id} onClick={()=>setBFloor(fl.id)} className="floor-in" style={{animationDelay:`${i*60}ms`,background:bFloor===fl.id?'#18191f':'none',border:'none',cursor:'pointer',fontSize:16,fontWeight:bFloor===fl.id?700:400,color:bFloor===fl.id?'#fff':'#8b9ab5',padding:'2px 4px',borderRadius:100,textAlign:'center',transition:'background .15s, color .15s, font-weight .15s'}}>{fl.label}</button>
               ))}
             </div>
 
@@ -2005,25 +2320,12 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
               const floorData=FLOORS.find(f=>f.id===bFloor)||FLOORS[FLOORS.length-1];
               const savings=Math.round((1-floorData.optimized/floorData.consumption)*100);
               return(
-                <div style={{position:'absolute',left:'38.5%',top:'34%',zIndex:20,
+                <div style={{position:'absolute',left:'30%',top:'28%',zIndex:20,
                   background:'rgba(24,25,31,0.20)',border:'1px solid rgba(255,255,255,0.20)',
                   borderRadius:12,padding:17,width:184,
                   pointerEvents:'auto',display:'flex',flexDirection:'column',gap:12}}>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
-                    <span style={{fontSize:14,fontWeight:700,color:'#fff'}}>{bFloor} Floor</span>
-                    <button
-                      title={'查看平层'}
-                      onClick={()=>{setCtxFloorActive(bFloor);setTab('Floor');}}
-                      style={{display:'flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:6,background:'rgba(85,118,239,0.18)',border:'1px solid rgba(85,118,239,0.45)',cursor:'pointer',flexShrink:0,transition:'background .15s'}}
-                      onMouseEnter={e=>e.currentTarget.style.background='rgba(85,118,239,0.35)'}
-                      onMouseLeave={e=>e.currentTarget.style.background='rgba(85,118,239,0.18)'}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8ba4f8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 3h10v10H3z"/>
-                        <path d="M13 13h8v8h-8z"/>
-                        <path d="M3 3v10h10V3"/>
-                        <path d="M13 13v8h8v-8"/>
-                      </svg>
-                    </button>
+                  <div style={{display:'flex',alignItems:'center'}}>
+                    <span style={{fontSize:14,fontWeight:700,color:'#fff'}}>{floorData.label.replace('F',' Floor')}</span>
                   </div>
                   <div style={{display:'flex',flexDirection:'column',gap:4}}>
                     <div style={{fontSize:12,color:'rgba(255,255,255,0.45)'}}>Current consumption</div>
@@ -2046,10 +2348,13 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
         </div>
       )}
       {/* ── View Cards — 全 tab 共用 ── */}
-      <div style={{position:'absolute',bottom:20,left:panelVisible?440:30,right:68,display:'flex',gap:12,zIndex:10,
+      <div style={{position:'absolute',bottom:20,
+        left:panelVisible?rpW:30,
+        right:panelVisible?rpW:30,
+        display:'flex',gap:12,zIndex:10,
         opacity:bearingVisible?1:0,transform:bearingVisible?'translateY(0)':'translateY(16px)',
         pointerEvents:bearingVisible?'auto':'none',
-        transition:'opacity .35s cubic-bezier(0.4,0,0.2,1), transform .35s cubic-bezier(0.4,0,0.2,1)'}}>
+        transition:'opacity .35s cubic-bezier(0.4,0,0.2,1), transform .35s cubic-bezier(0.4,0,0.2,1), left .4s cubic-bezier(0.4,0,0.2,1), right .4s cubic-bezier(0.4,0,0.2,1)'}}>
         {VIEW_CARD_DEFS.map((d,i)=>(
           <ViewCard key={i} onClick={()=>setViewModalOpen(d.modal)}
             imgSrc={d.src} imgH={d.h} imgTop={d.top} hasOverlay={d.overlay}/>
@@ -2070,8 +2375,9 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
 
 /* ══════════════════ INTRO SCREEN ════════════════════════════════ */
 function IntroScreen({onDone}){
+  const {setIntroReady}=useE();
   const [fading,setFading]=useState(false);
-  function dismiss(){setFading(true);setTimeout(onDone,900);}
+  function dismiss(){setFading(true);setIntroReady(true);setTimeout(onDone,900);}
   useEffect(()=>{const t=setTimeout(dismiss,8000);return()=>clearTimeout(t);},[]);
   return(
     <div style={{position:'fixed',inset:0,zIndex:1000,background:'#000',opacity:fading?0:1,transition:'opacity .9s ease',pointerEvents:fading?'none':'auto'}}>
@@ -2089,6 +2395,7 @@ function IntroScreen({onDone}){
 /* ══════════════════ APP ══════════════════════════════════════════ */
 function App(){
   const isMobile=useMobile();
+  const rpW=useRpWidth();
   const [intro,setIntro]=useState(true);
   const [show3D,setShow3D]=useState(false);
   const [panelVisible,setPanelVisible]=useState(()=>window.innerWidth>=768);
@@ -2110,8 +2417,8 @@ function App(){
       {show3D&&<Globe3D onClose={()=>setShow3D(false)}/>}
       <div style={{position:'relative',height:'100vh',overflow:'hidden'}}>
         <BuildingView onToggle3D={()=>setShow3D(true)} onTogglePanel={()=>setPanelVisible(v=>!v)} panelVisible={panelVisible}
-          onRefresh={()=>setPanelKey(k=>k+1)}/>
-        <div ref={scrollRef} className="panel-scroll" onScroll={handlePanelScroll} style={isMobile?{
+          onRefresh={()=>setPanelKey(k=>k+1)} onRangeChange={()=>setPanelKey(k=>k+1)}/>
+        <div ref={scrollRef} className={`panel-scroll ${isMobile?'':'panel-enter-l'}`} onScroll={handlePanelScroll} style={isMobile?{
           position:'fixed',bottom:0,left:0,right:0,width:'100%',height:'68vh',
           display:'flex',flexDirection:'column',gap:8,padding:'8px 16px 20px',
           overflowY:'auto',overflowX:'hidden',zIndex:20,
@@ -2122,7 +2429,7 @@ function App(){
           pointerEvents:panelVisible?'auto':'none',
         }:{
           position:'absolute',left:0,top:0,width:420,height:'100%',
-          display:'flex',flexDirection:'column',gap:8,padding:20,
+          display:'flex',flexDirection:'column',gap:8,padding:'28px 20px 20px',
           overflowY:'auto',overflowX:'hidden',zIndex:5,
           transform:panelVisible?'translateX(0)':'translateX(-440px)',
           transition:'transform 0.4s cubic-bezier(0.4,0,0.2,1)',
@@ -2130,25 +2437,253 @@ function App(){
         }}>
           {isMobile&&<div style={{width:36,height:4,borderRadius:2,background:'rgba(255,255,255,0.2)',margin:'0 auto 8px',flexShrink:0}}/>}
           <React.Fragment key={panelKey}>
-            <AISuggestionPanel/>
             <EnergyChart/>
             <StatsCards/>
             <SavingsChart/>
+            {isMobile&&<>
+              <CostAllocationCard/>
+              <PerCapitaCostCard/>
+              <SavingsVsLastMonthCard/>
+              <OrgElectricityTrendCard/>
+            </>}
           </React.Fragment>
         </div>
+        {!isMobile&&(
+          <RightPanel panelVisible={panelVisible} panelKey={panelKey} rpW={rpW}/>
+        )}
         {/* Mobile panel toggle button */}
         {isMobile&&<button onClick={()=>setPanelVisible(v=>!v)} style={{position:'fixed',bottom:panelVisible?'calc(68vh - 1px)':16,left:'50%',transform:'translateX(-50%)',zIndex:21,display:'flex',alignItems:'center',gap:6,padding:'7px 16px',borderRadius:20,background:'rgba(13,21,36,0.95)',border:'1px solid rgba(77,138,240,0.3)',color:'rgba(255,255,255,0.85)',fontSize:12,fontWeight:600,cursor:'pointer',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',transition:'bottom 0.4s cubic-bezier(0.4,0,0.2,1)',boxShadow:'0 2px 12px rgba(0,0,0,0.4)'}}>
           <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{transform:panelVisible?'rotate(180deg)':'none',transition:'transform .3s'}}><polyline points="18 15 12 9 6 15"/></svg>
           {panelVisible?'Hide Data':'Show Data'}
         </button>}
-        <a href="rd/RunDo-ECM-v0.6-2026-03-31.html" target="_blank"
-          style={{position:'absolute',top:16,right:16,zIndex:50,width:36,height:36,borderRadius:18,background:'linear-gradient(135deg,rgba(143,231,163,0.12) 0%,rgba(23,204,200,0.12) 100%)',border:'1px solid rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 8px rgba(0,0,0,0.4)',cursor:'pointer',textDecoration:'none',transition:'box-shadow .2s'}}
-          onMouseEnter={e=>e.currentTarget.style.boxShadow='0 0 14px rgba(23,204,200,0.5)'}
-          onMouseLeave={e=>e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,0.4)'}>
-          <img src="app-icon.png" alt="Smart City Platform" style={{width:24,height:24,objectFit:'contain'}}/>
+        <a href="https://yym001.github.io/energy-carbon-platform/index.html" target="_blank"
+          style={{position:'absolute',top:16,right:16,zIndex:50,width:36,height:36,borderRadius:18,background:'linear-gradient(135deg,rgba(0,229,220,0.22) 0%,rgba(85,118,239,0.28) 100%)',border:'1px solid rgba(0,229,220,0.45)',display:'flex',alignItems:'center',justifyContent:'center',gap:6,boxShadow:'0 2px 10px rgba(0,0,0,0.45),0 0 10px rgba(0,229,220,0.22)',cursor:'pointer',textDecoration:'none',transition:'box-shadow .2s'}}
+          onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 10px rgba(0,0,0,0.45),0 0 16px rgba(0,229,220,0.55)'}
+          onMouseLeave={e=>e.currentTarget.style.boxShadow='0 2px 10px rgba(0,0,0,0.45),0 0 10px rgba(0,229,220,0.22)'}>
+          <img src="app-icon.png" alt="Platform" style={{width:22,height:22,objectFit:'contain'}}/>
         </a>
       </div>
     </EProvider>
+  );
+}
+
+/* ══════════════════ FLOATING AI SUGGESTION ══════════════════════ */
+function FloatingAISuggestion(){
+  const [open,setOpen]=useState(false);
+  return(
+    <div style={{position:'absolute',top:16,right:200,zIndex:55,display:'flex',flexDirection:'column',alignItems:'flex-end',gap:10,pointerEvents:'none'}}>
+      <button onClick={()=>setOpen(o=>!o)} title="AI Suggestion"
+        style={{width:36,height:36,borderRadius:8,background:'linear-gradient(135deg,rgba(0,229,220,0.22) 0%,rgba(85,118,239,0.28) 100%)',border:'1px solid rgba(0,229,220,0.45)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 2px 10px rgba(0,0,0,0.45),0 0 10px rgba(0,229,220,0.22)',cursor:'pointer',pointerEvents:'auto',transition:'box-shadow .2s'}}
+        onMouseEnter={e=>e.currentTarget.style.boxShadow='0 2px 10px rgba(0,0,0,0.45),0 0 16px rgba(0,229,220,0.55)'}
+        onMouseLeave={e=>e.currentTarget.style.boxShadow='0 2px 10px rgba(0,0,0,0.45),0 0 10px rgba(0,229,220,0.22)'}>
+        <svg width="18" height="18" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="50,2 90,68 10,68" fill="rgba(0,229,220,0.92)"/>
+          <polygon points="50,98 10,32 90,32" fill="rgba(0,200,255,0.85)"/>
+          <polygon points="10,68 30,32 50,68" fill="rgba(0,210,120,0.9)"/>
+          <polygon points="90,68 70,32 50,68" fill="rgba(230,0,200,0.85)"/>
+        </svg>
+      </button>
+      {open&&(
+        <div style={{width:340,background:'rgba(13,21,36,0.96)',border:'1px solid rgba(77,138,240,0.28)',borderRadius:12,boxShadow:'0 8px 28px rgba(0,0,0,0.55)',backdropFilter:'blur(10px)',WebkitBackdropFilter:'blur(10px)',padding:'4px 16px 12px',pointerEvents:'auto'}}>
+          <div style={{display:'flex',justifyContent:'flex-end',marginTop:6}}>
+            <button onClick={()=>setOpen(false)} style={{background:'transparent',border:'none',color:'rgba(255,255,255,0.55)',cursor:'pointer',fontSize:16,lineHeight:1,padding:2}}>×</button>
+          </div>
+          <AISuggestionPanel/>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════ RIGHT PANEL CONTAINER ═══════════════════════ */
+// Separate component so it can call useE() to read ecTop (EProvider is its ancestor)
+function RightPanel({panelVisible,panelKey,rpW}){
+  const {ecTop}=useE();
+  const rpWidth=useRpWidth();
+  return(
+    <div className="panel-scroll panel-enter-r rp-desktop" style={{
+      position:'absolute',right:0,top:0,width:rpWidth||rpW,height:'100%',
+      display:'flex',flexDirection:'column',gap:8,
+      padding:`${ecTop}px 20px 20px`,
+      overflowY:'auto',overflowX:'hidden',zIndex:5,
+      transform:panelVisible?'translateX(0)':`translateX(${(rpW||rpWidth)+20}px)`,
+      transition:'transform 0.4s cubic-bezier(0.4,0,0.2,1)',
+      pointerEvents:panelVisible?'auto':'none',
+    }}>
+      <React.Fragment key={panelKey}>
+        <CostAllocationCard/>
+        <PerCapitaCostCard/>
+        <SavingsVsLastMonthCard/>
+        <OrgElectricityTrendCard/>
+      </React.Fragment>
+    </div>
+  );
+}
+
+/* ══════════════════ RIGHT-SIDE DATA MODULES ═════════════════════ */
+function SectionHeader({title}){
+  return <div style={{height:40,display:'flex',alignItems:'center'}}><span style={{fontSize:16,fontWeight:600}}>{title}</span></div>;
+}
+
+// 1) Cost Allocation donut
+function CostAllocationCard(){
+  const {range}=useE();
+  const ref=useRef(null);
+  const data=RANGE_DATA[range].costAlloc.data;
+  const totalLabel=RANGE_DATA[range].costAlloc.totalLabel;
+  useEffect(()=>{
+    if(!ref.current)return;
+    const ch=new Chart(ref.current.getContext('2d'),{
+      type:'doughnut',
+      data:{labels:data.map(d=>d.k),datasets:[{data:data.map(d=>d.v),backgroundColor:data.map(d=>d.color),borderColor:'rgba(24,25,31,0.9)',borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d1829',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#fff',bodyColor:'#94a3b8',callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw}%`}}},
+        animation:{duration:800}},
+    });
+    return()=>ch.destroy();
+  },[range]);
+  return(
+    <div className="pa5">
+      <SectionHeader title="Cost Allocation"/>
+      <div style={{background:'rgba(24,25,31,0.90)',borderRadius:10,padding:16,display:'flex',gap:14,alignItems:'center'}}>
+        <div style={{position:'relative',width:120,height:120,flexShrink:0}}>
+          <canvas ref={ref}/>
+          <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',pointerEvents:'none'}}>
+            <span style={{fontSize:10,color:'rgba(255,255,255,0.55)'}}>Total</span>
+            <span style={{fontSize:14,fontWeight:600,color:'#fff'}}>{totalLabel}</span>
+          </div>
+        </div>
+        <div style={{flex:1,display:'flex',flexDirection:'column',gap:6}}>
+          {data.map(d=>(
+            <div key={d.k} style={{display:'flex',alignItems:'center',gap:6,fontSize:11}}>
+              <span style={{width:8,height:8,borderRadius:2,background:d.color,flexShrink:0}}/>
+              <span style={{color:'rgba(255,255,255,0.85)',flex:1}}>{d.k}</span>
+              <span style={{color:'rgba(255,255,255,0.6)'}}>{d.v}%</span>
+              <span style={{fontSize:9,padding:'1px 6px',borderRadius:8,color:d.color,border:`1px solid ${d.color}55`,background:`${d.color}15`}}>{d.status}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 2) Per Capita Cost bars
+function PerCapitaCostCard(){
+  const {range}=useE();
+  const pc=RANGE_DATA[range].perCapita;
+  const {items,avg,max,avgLabel,benchmark}=pc;
+  const avgPct=avg/max*100;
+  return(
+    <div className="pa6">
+      <SectionHeader title="Per Capita Cost"/>
+      <div style={{background:'rgba(24,25,31,0.90)',borderRadius:10,padding:'14px 16px 12px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+          <span style={{fontSize:11,color:'rgba(255,255,255,0.55)'}}>Avg <span style={{color:'#fff',fontWeight:600}}>{avgLabel}</span></span>
+          <span style={{fontSize:9,padding:'2px 8px',borderRadius:10,color:'#8098f6',border:'1px solid rgba(128,152,246,0.35)',background:'rgba(85,118,239,0.12)'}}>{benchmark}</span>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {items.map(d=>{
+            const pct=d.v/max*100;
+            const c='#5576ef';
+            return(
+              <div key={d.k} style={{display:'flex',alignItems:'center',gap:10}}>
+                <span style={{fontSize:11,color:'rgba(255,255,255,0.75)',width:52,flexShrink:0}}>{d.k}</span>
+                <div style={{flex:1,position:'relative',height:6,borderRadius:3,background:'rgba(255,255,255,0.08)'}}>
+                  <div style={{position:'absolute',left:0,top:0,height:'100%',width:`${pct}%`,borderRadius:3,background:c,transition:'width .6s ease'}}/>
+                  <div style={{position:'absolute',top:-3,bottom:-3,left:`${avgPct}%`,width:2,borderRadius:1,background:'rgba(255,255,255,0.35)'}}/>
+                </div>
+                <span style={{fontSize:11,fontWeight:600,color:c,width:36,textAlign:'right',flexShrink:0}}>{d.v}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 3) Savings vs Last Period bars (title/data switch by range)
+function SavingsVsLastMonthCard(){
+  const {range}=useE();
+  const sv=RANGE_DATA[range].savingsVs;
+  const {title,items,absMax,unit,pill}=sv;
+  return(
+    <div className="pa7">
+      <SectionHeader title={title}/>
+      <div style={{background:'rgba(24,25,31,0.90)',borderRadius:10,padding:'14px 16px 12px'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+          <span style={{fontSize:9,padding:'2px 8px',borderRadius:10,color:'#8098f6',border:'1px solid rgba(128,152,246,0.35)',background:'rgba(85,118,239,0.12)'}}>{pill}</span>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {items.map(d=>{
+            const isNeg=d.v<0;
+            const c='#5576ef';
+            const halfPct=Math.abs(d.v)/absMax*50;
+            return(
+              <div key={d.k} style={{display:'flex',alignItems:'center',gap:10}}>
+                <span style={{fontSize:11,color:'rgba(255,255,255,0.75)',width:52,flexShrink:0}}>{d.k}</span>
+                <div style={{flex:1,position:'relative',height:6,borderRadius:3,background:'rgba(255,255,255,0.08)'}}>
+                  <div style={{position:'absolute',top:-3,bottom:-3,left:'50%',width:2,borderRadius:1,background:'rgba(255,255,255,0.35)',transform:'translateX(-50%)'}}/>
+                  {isNeg
+                    ?<div style={{position:'absolute',right:'50%',top:0,height:'100%',width:`${halfPct}%`,borderRadius:'3px 0 0 3px',background:c,transition:'width .6s ease'}}/>
+                    :<div style={{position:'absolute',left:'50%',top:0,height:'100%',width:`${halfPct}%`,borderRadius:'0 3px 3px 0',background:c,transition:'width .6s ease'}}/>
+                  }
+                </div>
+                <span style={{fontSize:11,fontWeight:600,color:c,width:42,textAlign:'right',flexShrink:0}}>{isNeg?'':'+'}{ d.v}{unit}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 4) Org Electricity Trend — labels & scale switch by range
+function OrgElectricityTrendCard(){
+  const {range}=useE();
+  const ot=RANGE_DATA[range].orgTrend;
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!ref.current)return;
+    const {labels,base,axisUnit}=ot;
+    const mk=(scale,shift)=>base.map((v,i)=>Math.round((v*scale+Math.sin(i/3+shift)*2)*10)/10);
+    const series=[
+      {label:'Admin',    color:'#5576ef',data:mk(1,0)},
+      {label:'R&D',      color:'#22c55e',data:mk(0.85,1)},
+      {label:'Ops',      color:'#f59e0b',data:mk(0.7,2)},
+      {label:'Logistics',color:'#e879f9',data:mk(0.55,3)},
+    ];
+    const ch=new Chart(ref.current.getContext('2d'),{
+      type:'line',
+      data:{labels,datasets:series.map(s=>({label:s.label,data:s.data,borderColor:s.color,borderWidth:1.6,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:s.color,pointHoverBorderColor:'#fff',tension:.35,fill:false}))},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d1829',borderColor:'rgba(255,255,255,.12)',borderWidth:1,titleColor:'#fff',bodyColor:'#94a3b8',callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw} ${axisUnit}`,labelColor:ctx=>{const c=ctx.dataset.borderColor;return{borderColor:c,backgroundColor:c,borderRadius:2};}}}},
+        scales:{
+          x:{grid:{color:'rgba(255,255,255,.06)',borderDash:[3,3]},ticks:{color:'#94a3b8',font:{size:9},maxTicksLimit:8},border:{display:false}},
+          y:{grid:{color:'rgba(255,255,255,.06)',borderDash:[3,3]},ticks:{color:'#94a3b8',font:{size:10},maxTicksLimit:6,callback:v=>v+axisUnit},border:{display:false}},
+        },
+        animation:{duration:900}},
+    });
+    return()=>ch.destroy();
+  },[range]);
+  const legend=[['#5576ef','Admin'],['#22c55e','R&D'],['#f59e0b','Ops'],['#e879f9','Logistics']];
+  return(
+    <div className="pa8">
+      <SectionHeader title={ot.title}/>
+      <div style={{flex:1,minHeight:0,background:'rgba(24,25,31,0.90)',borderRadius:10,padding:16,display:'flex',flexDirection:'column'}}>
+        <div style={{display:'flex',gap:14,flexWrap:'wrap',marginBottom:10,flexShrink:0}}>
+          {legend.map(([c,l])=>(
+            <div key={l} style={{display:'flex',alignItems:'center',gap:5}}>
+              <div style={{width:8,height:8,borderRadius:2,background:c}}/>
+              <span style={{fontSize:10,color:'var(--muted)'}}>{l}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{flex:1,minHeight:120,position:'relative'}}><canvas ref={ref} style={{position:'absolute',inset:0,width:'100%',height:'100%'}}/></div>
+      </div>
+    </div>
   );
 }
 
