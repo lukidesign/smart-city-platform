@@ -150,6 +150,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .bld-img-ready{animation:bldFadeIn .5s ease both}
 </style>
 <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
 </head>
 <body>
 <div id="root"></div>
@@ -449,7 +450,7 @@ function EProvider({children}){
   const [tab,setTab]=useState('Campus');
   const [range,setRange]=useState('Month');
   const [ecTop,setEcTop]=useState(68);
-  const [introReady,setIntroReady]=useState(false);
+  const [introReady,setIntroReady]=useState(()=>location.hash.includes('figmacapture'));
   useEffect(()=>{
     const id=setInterval(()=>{
       setFloors(prev=>prev.map(f=>{
@@ -1902,7 +1903,7 @@ function Globe3D({onClose}){
 
 /* ══════════════════ MAP CONTROLS ════════════════════════════════ */
 const bs={width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(24,25,31,0.90)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:18,color:'var(--muted)',cursor:'pointer'};
-function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab,onToggleBearing,bearingVisible,videoLoop,onToggleVideoLoop}){
+function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab,onToggleBearing,bearingVisible,videoLoop,onToggleVideoLoop,onGoBack}){
   const [spinning,setSpinning]=useState(false);
   const [toolOpen,setToolOpen]=useState(false);
   const [aiOpen,setAiOpen]=useState(false);
@@ -1917,7 +1918,7 @@ function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab,onTogg
   return(<>
     {/* Top-right: Back button — only visible on Building tab */}
     {tab==='Building'&&(
-      <button title="Back to previous page" onClick={()=>window.history.back()}
+      <button title="Back to Campus" onClick={()=>onGoBack&&onGoBack()}
         style={{...bs,position:'absolute',top:16,right:104,zIndex:50}}
         onMouseEnter={e=>e.currentTarget.style.background='rgba(40,42,55,0.95)'}
         onMouseLeave={e=>e.currentTarget.style.background='rgba(24,25,31,0.90)'}>
@@ -2452,6 +2453,7 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
         ))}
       </div>
       <MapControls onToggle3D={onToggle3D} onTogglePanel={onTogglePanel} panelVisible={panelVisible} tab={tab}
+        onGoBack={()=>setTab('Campus')}
         videoLoop={videoLoop} onToggleVideoLoop={()=>{setVideoLoop(v=>!v);setVideoEnded(false);}}
         bearingVisible={bearingVisible} onToggleBearing={()=>setBearingVisible(v=>!v)}
         onRefresh={()=>{
@@ -2488,7 +2490,7 @@ function IntroScreen({onDone}){
 function App(){
   const isMobile=useMobile();
   const rpW=useRpWidth();
-  const [intro,setIntro]=useState(true);
+  const [intro,setIntro]=useState(()=>!location.hash.includes('figmacapture'));
   const [show3D,setShow3D]=useState(false);
   const [panelVisible,setPanelVisible]=useState(()=>window.innerWidth>=768);
   const [panelKey,setPanelKey]=useState(0);
