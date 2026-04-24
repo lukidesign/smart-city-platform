@@ -144,6 +144,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .btn:hover{opacity:.82}
 .collapse{overflow:hidden;transition:max-height .35s ease,opacity .3s ease}
 @keyframes typingDot{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+.bld-shimmer{background:linear-gradient(90deg,rgba(255,255,255,0.03) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.03) 75%);background-size:200% 100%;animation:shimmer 1.6s ease-in-out infinite}
+@keyframes bldFadeIn{from{opacity:0}to{opacity:1}}
+.bld-img-ready{animation:bldFadeIn .5s ease both}
 </style>
 <script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
 </head>
@@ -1017,6 +1021,27 @@ function useCountUp(target,duration=1100,delay=0){
   },[]);
   return[val,done];
 }
+// Animated number helper — handles integers and decimals
+function AnimVal({v,dec=0,prefix='',suffix=''}){
+  const [raw,setRaw]=useState(0);
+  useEffect(()=>{
+    let raf;
+    const t=setTimeout(()=>{
+      const s=performance.now(),dur=1100;
+      function step(now){
+        const p=Math.min((now-s)/dur,1);
+        const e=p<0.5?2*p*p:-1+(4-2*p)*p;
+        setRaw(e*v);
+        if(p<1)raf=requestAnimationFrame(step);
+        else setRaw(v);
+      }
+      raf=requestAnimationFrame(step);
+    },0);
+    return()=>{clearTimeout(t);if(raf)cancelAnimationFrame(raf);};
+  },[]);
+  const display=dec>0?raw.toFixed(dec):Math.round(raw);
+  return <>{prefix}{display}{suffix}</>;
+}
 
 /* ══════════════════ SAVINGS CHART ═══════════════════════════════ */
 // 折线从左向右逐步绘制插件
@@ -1877,7 +1902,7 @@ function Globe3D({onClose}){
 
 /* ══════════════════ MAP CONTROLS ════════════════════════════════ */
 const bs={width:36,height:36,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(24,25,31,0.90)',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:18,color:'var(--muted)',cursor:'pointer'};
-function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab,onToggleBearing,bearingVisible}){
+function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab,onToggleBearing,bearingVisible,videoLoop,onToggleVideoLoop}){
   const [spinning,setSpinning]=useState(false);
   const [toolOpen,setToolOpen]=useState(false);
   const [aiOpen,setAiOpen]=useState(false);
@@ -1890,6 +1915,38 @@ function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab,onTogg
   const itemSt={display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:8,cursor:'pointer',fontSize:12,fontWeight:500,color:'rgba(255,255,255,0.85)',background:'transparent',border:'none',width:'100%',textAlign:'left',transition:'background .15s'};
   const dividerSt={borderTop:'1px solid rgba(255,255,255,0.08)',margin:'4px 6px'};
   return(<>
+    {/* Top-right: Back button — only visible on Building tab */}
+    {tab==='Building'&&(
+      <button title="Back to previous page" onClick={()=>window.history.back()}
+        style={{...bs,position:'absolute',top:16,right:104,zIndex:50}}
+        onMouseEnter={e=>e.currentTarget.style.background='rgba(40,42,55,0.95)'}
+        onMouseLeave={e=>e.currentTarget.style.background='rgba(24,25,31,0.90)'}>
+        <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+    )}
+
+    {/* Top-right: Video loop toggle — only visible on Campus tab */}
+    {tab==='Campus'&&(
+      <button title={videoLoop?'Loop ON — click to play once':'Loop OFF — click to loop'}
+        onClick={onToggleVideoLoop}
+        style={{...bs,position:'absolute',top:16,right:104,zIndex:50,
+          background:videoLoop?'rgba(0,229,160,0.18)':'rgba(24,25,31,0.90)',
+          border:videoLoop?'1px solid rgba(0,229,160,0.5)':'1px solid rgba(255,255,255,0.08)',
+          transition:'background .2s,border .2s'}}
+        onMouseEnter={e=>e.currentTarget.style.background=videoLoop?'rgba(0,229,160,0.28)':'rgba(40,42,55,0.95)'}
+        onMouseLeave={e=>e.currentTarget.style.background=videoLoop?'rgba(0,229,160,0.18)':'rgba(24,25,31,0.90)'}>
+        <svg width="14" height="14" fill="none" stroke={videoLoop?'#00e5a0':'currentColor'} strokeWidth="2"
+          viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="17 1 21 5 17 9"/>
+          <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+          <polyline points="7 23 3 19 7 15"/>
+          <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+        </svg>
+      </button>
+    )}
+
     {/* Top-right: Fullscreen (standalone) */}
     <button title="Fullscreen" onClick={()=>{
       const el=document.documentElement;
@@ -1898,7 +1955,7 @@ function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab,onTogg
       } else {
         (document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen||document.msExitFullscreen).call(document);
       }
-    }} style={{...bs,position:'absolute',top:16,right:104,zIndex:50}}
+    }} style={{...bs,position:'absolute',top:16,right:60,zIndex:50}}
       onMouseEnter={e=>e.currentTarget.style.background='rgba(40,42,55,0.95)'}
       onMouseLeave={e=>e.currentTarget.style.background='rgba(24,25,31,0.90)'}>
       <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
@@ -1909,8 +1966,8 @@ function MapControls({onToggle3D,onTogglePanel,panelVisible,onRefresh,tab,onTogg
       </svg>
     </button>
 
-    {/* Top-right: Tools dropdown (left of app-icon) */}
-    <div style={{position:'absolute',top:16,right:60,zIndex:60}}>
+    {/* Top-right: Tools dropdown [HIDDEN, reserved for future use] */}
+    <div style={{position:'absolute',top:16,right:60,zIndex:60,display:'none'}}>
       <button title="More Tools" onClick={()=>setToolOpen(o=>!o)}
         style={{...bs,background:toolOpen?'rgba(40,42,55,0.95)':'rgba(24,25,31,0.90)',border:toolOpen?'1px solid rgba(255,255,255,0.18)':'1px solid rgba(255,255,255,0.08)',transition:'background .15s,border .15s'}}
         onMouseEnter={e=>e.currentTarget.style.background='rgba(40,42,55,0.95)'}
@@ -2131,9 +2188,12 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
   const rpW=useRpWidth();
   const [tabBarVisible,setTabBarVisible]=useState(false);
   const [bearingVisible,setBearingVisible]=useState(false);
+  const [videoLoop,setVideoLoop]=useState(false);
+  const [videoEnded,setVideoEnded]=useState(false);
   const [viewModalOpen,setViewModalOpen]=useState(null);
   const [bFloor,setBFloor]=useState(5);
-  const [bImg,setBImg]=useState(_BM(false));
+  const [bImg,setBImg]=useState(null);
+  const [bLoading,setBLoading]=useState(true);
   const [bHover,setBHover]=useState(false);
   const [zZone,setZZone]=useState('A');
   const [zHover,setZHover]=useState(false);
@@ -2142,20 +2202,31 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
   const [zBHover,setZBHover]=useState(false);
   const isBuilding=tab==='Floor';
   useEffect(()=>{
-    if(bFloor===0){setBImg(_BM());return;}
     let cancelled=false;
-    // 1. 先立即显示 LQ（低清）
-    const lqSrc=_BI(bFloor,false);
-    const lqImg=new Image();
-    lqImg.onload=()=>{if(!cancelled)setBImg(lqSrc);};
-    lqImg.onerror=()=>{if(!cancelled)setBImg(_BM(false));};
-    lqImg.src=lqSrc;
-    // 2. 后台并行加载 HQ（高清），加载完成后自动替换（不管网络状态，成功了就升级）
-    const hqSrc=_BI(bFloor,true);
-    const hqImg=new Image();
-    hqImg.onload=()=>{if(!cancelled)setBImg(hqSrc);};
-    // HQ 加载失败静默忽略，保持 LQ 展示
-    hqImg.src=hqSrc;
+    setBImg(null);
+    setBLoading(true);
+    // 始终加载 HQ，显示骨架屏等待，不使用低清图
+    const src=bFloor===0?_BM(true):_BI(bFloor,true);
+    const img=new Image();
+    img.onload=()=>{
+      if(cancelled)return;
+      setBImg(src);
+      setBLoading(false);
+    };
+    img.onerror=()=>{
+      if(cancelled)return;
+      // fallback: 尝试默认主图
+      const fb=_BM(true);
+      if(src!==fb){
+        const fi=new Image();
+        fi.onload=()=>{if(!cancelled){setBImg(fb);setBLoading(false);}};
+        fi.onerror=()=>{if(!cancelled)setBLoading(false);};
+        fi.src=fb;
+      } else {
+        setBLoading(false);
+      }
+    };
+    img.src=src;
     return()=>{cancelled=true;};
   },[bFloor]);
   useEffect(()=>{
@@ -2184,9 +2255,9 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
           <button key={t} onClick={()=>{setTab(t);setBearingVisible(false);onRefresh&&onRefresh();}} style={{flex:1,padding:'5px 10px',borderRadius:100,fontSize:'clamp(12px,1.4vw,16px)',fontWeight:a?700:400,color:a?'#fff':'rgba(255,255,255,0.85)',background:a?'#16171a':'transparent',border:'none',cursor:'pointer',transition:'all .15s',whiteSpace:'nowrap'}}>{t}</button>
         );})}
       </div>
-      {/* Tab bar toggle button — top LEFT, leftmost position */}
+      {/* Tab bar toggle button — top LEFT, leftmost position [HIDDEN, reserved for future use] */}
       <button title={tabBarVisible?'隐藏导航栏':'显示导航栏'} onClick={()=>setTabBarVisible(v=>!v)}
-        style={{position:'absolute',top:16,left:20,zIndex:50,width:36,height:36,borderRadius:18,background:tabBarVisible?'rgba(24,25,31,0.90)':'rgba(99,102,241,0.25)',border:`1px solid ${tabBarVisible?'rgba(255,255,255,0.12)':'rgba(99,102,241,0.6)'}`,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',transition:'background .2s, border .2s, box-shadow .2s',boxShadow:tabBarVisible?'none':'0 0 10px rgba(99,102,241,0.4)'}}
+        style={{position:'absolute',top:16,left:20,zIndex:50,width:36,height:36,borderRadius:18,background:tabBarVisible?'rgba(24,25,31,0.90)':'rgba(99,102,241,0.25)',border:`1px solid ${tabBarVisible?'rgba(255,255,255,0.12)':'rgba(99,102,241,0.6)'}`,display:'none',alignItems:'center',justifyContent:'center',cursor:'pointer',backdropFilter:'blur(2px)',WebkitBackdropFilter:'blur(2px)',transition:'background .2s, border .2s, box-shadow .2s',boxShadow:tabBarVisible?'none':'0 0 10px rgba(99,102,241,0.4)'}}
         onMouseEnter={e=>e.currentTarget.style.background=tabBarVisible?'rgba(40,42,55,0.95)':'rgba(99,102,241,0.4)'}
         onMouseLeave={e=>e.currentTarget.style.background=tabBarVisible?'rgba(24,25,31,0.90)':'rgba(99,102,241,0.25)'}>
         <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinejoin="round" strokeLinecap="round" style={{color:tabBarVisible?'rgba(255,255,255,0.7)':'rgba(99,102,241,1)'}}>
@@ -2205,18 +2276,38 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
         <div style={{position:'absolute',inset:0}}>
           {tab==='Campus'?(
             <>
-              <video key="city-video" src={_V()} poster="city-overview.png" autoPlay loop muted playsInline preload="auto"
-                style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
-              {/* 红框热区：点击进入 Building */}
+              {/* 视频播完后显示静态图，loop 模式下持续播放 */}
+              {videoEnded&&!videoLoop
+                ?<img src="rd/overviewjm.png" alt="campus overview"
+                    style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
+                :<video key={`city-video-${videoLoop}`} src={_V()} poster="city-overview.png"
+                    autoPlay loop={videoLoop} muted playsInline preload="auto"
+                    onEnded={()=>{if(!videoLoop)setVideoEnded(true);}}
+                    style={{width:'100%',height:'100%',objectFit:'cover',objectPosition:'center'}}/>
+              }
+              {/* 热区：无论视频还是静态图均可点击进入 Building */}
               <div onClick={()=>{setTab('Building');setBearingVisible(false);onRefresh&&onRefresh();}} title="Enter Building View"
                 style={{position:'absolute',left:'23%',top:'16%',width:'59%',height:'65%',zIndex:5,cursor:'pointer',
-                  borderRadius:8,
-                  transition:'background .2s'}}
+                  borderRadius:8,transition:'background .2s'}}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.01)'}
                 onMouseLeave={e=>e.currentTarget.style.background='transparent'}/>
             </>
           ):(
-            <img src={tab==='Building'?bImg:tab==='Zone'?zBImg:VIEW_IMGS[tab]} alt={tab} style={{width:'100%',height:'100%',objectFit: tab==='Zone'?'contain':'cover',objectPosition:'center',transform:tab==='Zone'?'scale(1)':'none',transformOrigin:'center center'}}/>
+            tab==='Building'?(
+              <>
+                {bLoading&&(
+                  <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',zIndex:2}}>
+                    <div style={{width:36,height:36,border:'3px solid rgba(0,229,160,0.2)',borderTopColor:'#00e5a0',borderRadius:'50%',animation:'spin .8s linear infinite'}}/>
+                  </div>
+                )}
+                {bImg&&(
+                  <img key={bImg} src={bImg} alt="building" className="bld-img-ready"
+                    style={{position:'absolute',inset:0,width:'100%',height:'100%',objectFit:'cover',objectPosition:'center',zIndex:3}}/>
+                )}
+              </>
+            ):(
+              <img src={tab==='Zone'?zBImg:VIEW_IMGS[tab]} alt={tab} style={{width:'100%',height:'100%',objectFit:tab==='Zone'?'contain':'cover',objectPosition:'center'}}/>
+            )
           )}
           <div style={{position:'absolute',inset:0,background:'rgba(7,13,26,.15)'}}/>
           {false&&tab==='Zone'&&(<>
@@ -2361,6 +2452,7 @@ function BuildingView({aiOpen=false,onToggle3D,onTogglePanel,panelVisible,onRefr
         ))}
       </div>
       <MapControls onToggle3D={onToggle3D} onTogglePanel={onTogglePanel} panelVisible={panelVisible} tab={tab}
+        videoLoop={videoLoop} onToggleVideoLoop={()=>{setVideoLoop(v=>!v);setVideoEnded(false);}}
         bearingVisible={bearingVisible} onToggleBearing={()=>setBearingVisible(v=>!v)}
         onRefresh={()=>{
           // reset current tab's 3D view state
@@ -2574,6 +2666,8 @@ function PerCapitaCostCard(){
   const pc=RANGE_DATA[range].perCapita;
   const {items,avg,max,avgLabel,benchmark}=pc;
   const avgPct=avg/max*100;
+  const [ready,setReady]=useState(false);
+  useEffect(()=>{const t=setTimeout(()=>setReady(true),60);return()=>clearTimeout(t);},[]);
   return(
     <div className="pa6">
       <SectionHeader title="Per Capita Cost"/>
@@ -2590,10 +2684,10 @@ function PerCapitaCostCard(){
               <div key={d.k} style={{display:'flex',alignItems:'center',gap:10}}>
                 <span style={{fontSize:11,color:'rgba(255,255,255,0.75)',width:52,flexShrink:0}}>{d.k}</span>
                 <div style={{flex:1,position:'relative',height:6,borderRadius:3,background:'rgba(255,255,255,0.08)'}}>
-                  <div style={{position:'absolute',left:0,top:0,height:'100%',width:`${pct}%`,borderRadius:3,background:c,transition:'width .6s ease'}}/>
+                  <div style={{position:'absolute',left:0,top:0,height:'100%',width:ready?`${pct}%`:'0%',borderRadius:3,background:c,transition:'width .9s cubic-bezier(.4,0,.2,1)'}}/>
                   <div style={{position:'absolute',top:-3,bottom:-3,left:`${avgPct}%`,width:2,borderRadius:1,background:'rgba(255,255,255,0.35)'}}/>
                 </div>
-                <span style={{fontSize:11,fontWeight:600,color:c,width:36,textAlign:'right',flexShrink:0}}>{d.v}</span>
+                <span style={{fontSize:11,fontWeight:600,color:c,width:36,textAlign:'right',flexShrink:0}}><AnimVal v={d.v}/></span>
               </div>
             );
           })}
@@ -2608,6 +2702,8 @@ function SavingsVsLastMonthCard(){
   const {range}=useE();
   const sv=RANGE_DATA[range].savingsVs;
   const {title,items,absMax,unit,pill}=sv;
+  const [ready,setReady]=useState(false);
+  useEffect(()=>{const t=setTimeout(()=>setReady(true),60);return()=>clearTimeout(t);},[]);
   return(
     <div className="pa7">
       <SectionHeader title={title}/>
@@ -2618,19 +2714,22 @@ function SavingsVsLastMonthCard(){
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
           {items.map(d=>{
             const isNeg=d.v<0;
+            const absV=Math.abs(d.v);
             const c='#5576ef';
-            const halfPct=Math.abs(d.v)/absMax*50;
+            const halfPct=absV/absMax*50;
             return(
               <div key={d.k} style={{display:'flex',alignItems:'center',gap:10}}>
                 <span style={{fontSize:11,color:'rgba(255,255,255,0.75)',width:52,flexShrink:0}}>{d.k}</span>
                 <div style={{flex:1,position:'relative',height:6,borderRadius:3,background:'rgba(255,255,255,0.08)'}}>
                   <div style={{position:'absolute',top:-3,bottom:-3,left:'50%',width:2,borderRadius:1,background:'rgba(255,255,255,0.35)',transform:'translateX(-50%)'}}/>
                   {isNeg
-                    ?<div style={{position:'absolute',right:'50%',top:0,height:'100%',width:`${halfPct}%`,borderRadius:'3px 0 0 3px',background:c,transition:'width .6s ease'}}/>
-                    :<div style={{position:'absolute',left:'50%',top:0,height:'100%',width:`${halfPct}%`,borderRadius:'0 3px 3px 0',background:c,transition:'width .6s ease'}}/>
+                    ?<div style={{position:'absolute',right:'50%',top:0,height:'100%',width:ready?`${halfPct}%`:'0%',borderRadius:'3px 0 0 3px',background:c,transition:'width .9s cubic-bezier(.4,0,.2,1)'}}/>
+                    :<div style={{position:'absolute',left:'50%',top:0,height:'100%',width:ready?`${halfPct}%`:'0%',borderRadius:'0 3px 3px 0',background:c,transition:'width .9s cubic-bezier(.4,0,.2,1)'}}/>
                   }
                 </div>
-                <span style={{fontSize:11,fontWeight:600,color:c,width:42,textAlign:'right',flexShrink:0}}>{isNeg?'':'+'}{ d.v}{unit}</span>
+                <span style={{fontSize:11,fontWeight:600,color:c,width:42,textAlign:'right',flexShrink:0}}>
+                  {isNeg?'-':'+'}<AnimVal v={absV} dec={Number.isInteger(d.v)?0:1}/>{unit}
+                </span>
               </div>
             );
           })}
@@ -2657,6 +2756,7 @@ function OrgElectricityTrendCard(){
     ];
     const ch=new Chart(ref.current.getContext('2d'),{
       type:'line',
+      plugins:[lineDrawPlugin],
       data:{labels,datasets:series.map(s=>({label:s.label,data:s.data,borderColor:s.color,borderWidth:1.6,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:s.color,pointHoverBorderColor:'#fff',tension:.35,fill:false}))},
       options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
         plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d1829',borderColor:'rgba(255,255,255,.12)',borderWidth:1,titleColor:'#fff',bodyColor:'#94a3b8',callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw} ${axisUnit}`,labelColor:ctx=>{const c=ctx.dataset.borderColor;return{borderColor:c,backgroundColor:c,borderRadius:2};}}}},
@@ -2664,9 +2764,21 @@ function OrgElectricityTrendCard(){
           x:{grid:{color:'rgba(255,255,255,.06)',borderDash:[3,3]},ticks:{color:'#94a3b8',font:{size:9},maxTicksLimit:8},border:{display:false}},
           y:{grid:{color:'rgba(255,255,255,.06)',borderDash:[3,3]},ticks:{color:'#94a3b8',font:{size:10},maxTicksLimit:6,callback:v=>v+axisUnit},border:{display:false}},
         },
-        animation:{duration:900}},
+        animation:{duration:0}},
     });
-    return()=>ch.destroy();
+    // line-draw animation (same as SavingsChart)
+    ch._lineProgress=0;
+    let raf2;
+    const s0=performance.now(),dur=1500;
+    function step2(now){
+      const p=Math.min((now-s0)/dur,1);
+      ch._lineProgress=p<0.5?2*p*p:-1+(4-2*p)*p;
+      ch.draw();
+      if(p<1)raf2=requestAnimationFrame(step2);
+      else delete ch._lineProgress;
+    }
+    raf2=requestAnimationFrame(step2);
+    return()=>{cancelAnimationFrame(raf2);ch.destroy();};
   },[range]);
   const legend=[['#5576ef','Admin'],['#22c55e','R&D'],['#f59e0b','Ops'],['#e879f9','Logistics']];
   return(
