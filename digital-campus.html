@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1920, initial-scale=1" />
+<title>3D 可视化智慧校园 · Digital Campus</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg-deep:#02050d;
+  --bg-panel:rgba(8,18,38,.72);
+  --border-cyan:rgba(80,180,255,.38);
+  --cyan:#5ad1ff;
+  --cyan-bright:#8ce9ff;
+  --cyan-soft:#2a7aa8;
+  --gold:#e4b867;
+  --warm-win:#ffc966;
+  --warn:#ff6a4d;
+  --ok:#4ade80;
+  --text:#d9eaff;
+  --text-dim:#7e9bbf;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:var(--bg-deep);color:var(--text);font-family:"DIN Alternate","HarmonyOS Sans",-apple-system,"PingFang SC","Microsoft Yahei",sans-serif;overflow:hidden;user-select:none}
+#app{position:relative;width:100vw;height:100vh;background:
+  radial-gradient(ellipse 90% 70% at 50% 45%, #132a52 0%, #0a1730 40%, #040918 75%, #01030a 100%);}
+
+/* ============ 3D canvas ============ */
+#scene{position:absolute;inset:0;z-index:1}
+#scene canvas{display:block;width:100%;height:100%}
+
+/* 后期叠加的扫描线 / 暗角 */
+#app::before{
+  content:"";position:absolute;inset:0;z-index:5;pointer-events:none;
+  background:
+    radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.7) 100%),
+    repeating-linear-gradient(0deg,rgba(90,209,255,.015) 0 2px,transparent 2px 4px);
+  mix-blend-mode:overlay;
+}
+
+/* ============ 顶部栏 ============ */
+.topbar{
+  position:absolute;top:0;left:0;right:0;height:64px;z-index:10;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;
+  background:linear-gradient(180deg,rgba(5,12,28,.95) 0%,rgba(5,12,28,.6) 60%,transparent 100%);
+}
+.topbar .time{font-size:15px;letter-spacing:.5px;color:var(--text);opacity:.85}
+.topbar .time b{color:var(--cyan-bright);font-weight:500;margin:0 6px}
+.topbar h1{
+  font-size:28px;font-weight:600;letter-spacing:8px;
+  background:linear-gradient(180deg,#fff 0%,#e4b867 45%,#a87b2a 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 0 20px rgba(228,184,103,.25);
+}
+.topbar .right-tools{display:flex;gap:18px;align-items:center;font-size:13px;color:var(--text-dim)}
+.topbar .right-tools span{cursor:pointer;padding:6px 10px;border-radius:2px;transition:all .2s}
+.topbar .right-tools span.active{color:var(--cyan-bright);background:rgba(90,209,255,.12);border:1px solid var(--border-cyan)}
+.topbar .right-tools span:hover{color:var(--cyan-bright)}
+
+/* 中间模式切换 */
+.mode-switch{
+  position:absolute;top:70px;left:50%;transform:translateX(-50%);
+  display:flex;gap:40px;z-index:10;font-size:14px;
+}
+.mode-switch span{position:relative;padding:6px 4px;color:var(--text-dim);cursor:pointer;letter-spacing:2px}
+.mode-switch span.active{color:var(--cyan-bright)}
+.mode-switch span.active::after{
+  content:"";position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);
+  width:40px;height:2px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);
+}
+
+/* 左侧地图模式切换 */
+.map-mode-switch{
+  position:absolute;top:70px;left:20px;z-index:10;font-size:13px;
+  display:flex;flex-direction:column;gap:6px;
+  background:rgba(8,18,38,.72);border:1px solid rgba(90,209,255,.25);
+  padding:8px 12px;backdrop-filter:blur(6px);
+}
+.map-mode-switch .lbl{font-size:11px;color:var(--text-dim);letter-spacing:2px;margin-bottom:2px}
+.map-mode-switch span{padding:4px 8px;color:var(--text-dim);cursor:pointer;letter-spacing:1px;
+  border-left:2px solid transparent;transition:all .2s}
+.map-mode-switch span.active{color:var(--cyan-bright);border-left-color:var(--cyan);
+  background:rgba(90,209,255,.1);text-shadow:0 0 6px rgba(90,209,255,.6)}
+.map-mode-switch span:hover:not(.active){color:#9bd6ff}
+
+/* 地图模式2 背景图覆盖 */
+#map-bg{position:fixed;inset:0;z-index:1;background:#000 center/cover no-repeat;
+  display:none;pointer-events:none;}
+body.mapmode-2 #map-bg{display:block}
+body.mapmode-2 #scene{display:none}
+
+/* ============ 面板通用样式 ============ */
+.panel{
+  position:absolute;z-index:9;
+  background:var(--bg-panel);
+  border:1px solid var(--border-cyan);
+  backdrop-filter:blur(6px);
+  padding:14px 16px;
+  box-shadow:0 0 20px rgba(90,209,255,.05),inset 0 0 20px rgba(90,209,255,.04);
+}
+.panel::before,.panel::after{
+  content:"";position:absolute;width:12px;height:12px;border:1.5px solid var(--cyan);
+}
+.panel::before{top:-1px;left:-1px;border-right:none;border-bottom:none}
+.panel::after{bottom:-1px;right:-1px;border-left:none;border-top:none}
+.panel .corner-tr,.panel .corner-bl{position:absolute;width:12px;height:12px;border:1.5px solid var(--cyan)}
+.panel .corner-tr{top:-1px;right:-1px;border-left:none;border-bottom:none}
+.panel .corner-bl{bottom:-1px;left:-1px;border-right:none;border-top:none}
+.panel h3{
+  font-size:14px;font-weight:500;letter-spacing:2px;
+  color:var(--cyan-bright);margin-bottom:10px;
+  padding-left:12px;position:relative;
+}
+.panel h3::before{
+  content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:4px;height:14px;background:linear-gradient(180deg,var(--cyan),transparent);
+}
+
+/* ============ 左右侧面板布局 ============ */
+.left-stack{position:absolute;left:20px;top:78px;bottom:84px;width:380px;display:flex;flex-direction:column;gap:14px;z-index:9;overflow-y:auto;padding-right:4px}
+.right-stack{position:absolute;right:20px;top:78px;bottom:84px;width:380px;display:flex;flex-direction:column;gap:14px;z-index:9;overflow-y:auto;padding-right:4px}
+.left-stack::-webkit-scrollbar,.right-stack::-webkit-scrollbar{width:4px}
+.left-stack::-webkit-scrollbar-thumb,.right-stack::-webkit-scrollbar-thumb{background:rgba(90,209,255,.3)}
+.left-stack .panel,.right-stack .panel{position:relative}
+
+/* ============ 新版面板头（绿光 bar + 太阳能图标 + 装饰点） ============ */
+.p-head{display:flex;align-items:center;gap:8px;padding:6px 10px;margin:-14px -16px 12px;
+  background:linear-gradient(90deg,rgba(60,160,120,.25) 0%,rgba(40,80,90,.15) 60%,transparent 100%);
+  border-bottom:1px solid rgba(80,200,160,.35);position:relative;}
+.p-head .ico{width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#1f5a48,#0a3528);border:1px solid rgba(80,200,160,.6);
+  color:#7ce0b0;font-size:13px;}
+.p-head .t{font-size:14px;letter-spacing:2px;color:#a8f0d0;font-weight:500}
+.p-head .t::before{content:"/ ";color:rgba(168,240,208,.5);margin-right:2px}
+.p-head .deco{margin-left:auto;display:flex;gap:3px}
+.p-head .deco i{display:block;height:2px;background:#7ce0b0;border-radius:1px;opacity:.7}
+.p-head .deco i:nth-child(1){width:14px}.p-head .deco i:nth-child(2){width:8px}.p-head .deco i:nth-child(3){width:4px}
+.p-head .right-meta{margin-left:auto;font-size:11px;color:var(--text-dim);padding-right:4px}
+.p-head .right-meta b{color:var(--cyan-bright);font-weight:500}
+
+/* ============ 实时功率圆形仪表 ============ */
+.gauge-row{display:flex;align-items:center;gap:14px}
+.gauge{position:relative;width:130px;height:130px;flex-shrink:0}
+.gauge svg{transform:rotate(-90deg)}
+.gauge .gauge-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.gauge .gauge-c .num{font-size:24px;color:#fff;font-weight:600;line-height:1.1;text-shadow:0 0 8px rgba(124,224,176,.5)}
+.gauge .gauge-c .unit{font-size:11px;color:#7ce0b0;letter-spacing:1px}
+.gauge .gauge-c .lbl{font-size:11px;color:var(--text-dim);margin-top:4px}
+.gauge-info{flex:1;display:flex;flex-direction:column;gap:7px;font-size:12px}
+.gauge-info .row{display:flex;align-items:center}
+.gauge-info .row::before{content:"";width:6px;height:6px;border-radius:50%;background:#7ce0b0;margin-right:8px;box-shadow:0 0 6px #7ce0b0}
+.gauge-info .row .k{color:var(--text-dim);min-width:74px}
+.gauge-info .row .v{color:#fff;font-weight:500}
+.gauge-info .row .v small{color:var(--text-dim);font-size:10px;margin-left:3px}
+
+/* 三个减排指标 */
+.eco-row{display:flex;justify-content:space-around;margin-top:14px;padding-top:14px;border-top:1px dashed rgba(124,224,176,.2)}
+.eco-row .item{text-align:center;flex:1}
+.eco-row .item .ic{width:42px;height:42px;border:1px solid rgba(124,224,176,.45);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;margin:0 auto 6px;
+  background:radial-gradient(circle,rgba(124,224,176,.18),rgba(10,40,30,.4));font-size:14px;color:#a8f0d0}
+.eco-row .item .lbl{font-size:11px;color:var(--text-dim);margin-bottom:3px}
+.eco-row .item .num{font-size:18px;color:#7ce0b0;font-weight:600;letter-spacing:.5px}
+
+/* ============ 设备资产 ============ */
+.dev-total{display:flex;align-items:baseline;gap:14px;padding:8px 12px;margin-bottom:8px;
+  background:linear-gradient(90deg,rgba(124,224,176,.15),transparent);border-left:3px solid #7ce0b0}
+.dev-total .lbl{font-size:12px;color:#a8f0d0}
+.dev-total .num{font-size:22px;color:#fff;font-weight:600;letter-spacing:1px}
+.dev-list .dev-row{display:flex;align-items:center;padding:9px 6px;border-bottom:1px dashed rgba(90,209,255,.12);font-size:12px}
+.dev-list .dev-row:last-child{border-bottom:none}
+.dev-list .dev-name{flex:1;color:#fff;display:flex;align-items:center;gap:6px}
+.dev-list .dev-name .di{color:#7ce0b0;font-size:14px}
+.dev-list .dev-stat{padding-left:14px;color:var(--text-dim);position:relative;min-width:64px}
+.dev-list .dev-stat::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);width:1px;height:12px;background:rgba(90,209,255,.2)}
+.dev-list .dev-stat b{color:var(--cyan-bright);margin-left:4px;font-weight:600}
+.dev-list .dev-stat.warn b{color:#ff8a4d}
+.dev-list .dev-stat.off b{color:#ff6a4d}
+
+/* ============ 运维记录 ============ */
+table.op-tbl{width:100%;border-collapse:collapse;font-size:12px}
+table.op-tbl th{color:var(--text-dim);font-weight:400;text-align:left;padding:8px 6px;font-size:11px;border-bottom:1px solid rgba(90,209,255,.18)}
+table.op-tbl td{padding:10px 6px;border-bottom:1px dashed rgba(90,209,255,.1);color:#cfe1f5}
+.op-badge{display:inline-block;padding:2px 8px;font-size:11px;border-radius:2px;letter-spacing:1px}
+.op-badge.run{background:rgba(90,209,255,.18);color:#5ad1ff;border:1px solid rgba(90,209,255,.5)}
+.op-badge.proc{background:rgba(124,224,176,.18);color:#7ce0b0;border:1px solid rgba(124,224,176,.5)}
+.op-badge.wait{background:rgba(228,184,103,.15);color:#e4b867;border:1px solid rgba(228,184,103,.5)}
+.op-badge.done{background:rgba(120,140,160,.18);color:#9ab;border:1px solid rgba(120,140,160,.5)}
+
+/* ============ 计划完成率（进度条组） ============ */
+.plan-list{display:flex;flex-direction:column;gap:14px}
+.plan-row{display:flex;flex-direction:column;gap:5px;font-size:12px}
+.plan-row .top{display:flex;align-items:center}
+.plan-row .top .k{flex:1;color:#cfe1f5;display:flex;align-items:center;gap:6px}
+.plan-row .top .k::before{content:"";width:14px;height:14px;border-radius:50%;
+  background:radial-gradient(circle,#5ad1ff,transparent 70%);border:1px solid #5ad1ff}
+.plan-row .top .pct{color:#fff;font-weight:600;font-size:14px}
+.plan-row .bar{height:6px;background:rgba(90,209,255,.15);border-radius:3px;overflow:hidden;position:relative}
+.plan-row .bar .fill{height:100%;background:linear-gradient(90deg,#7ce0b0,#5ad1ff);box-shadow:0 0 6px rgba(124,224,176,.6);transition:width .8s}
+.plan-row .sub{display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim)}
+
+/* ============ 图表标题日期 ============ */
+.chart-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-dim);margin-bottom:6px;padding:2px 4px}
+.chart-meta .legends{display:flex;gap:10px}
+.chart-meta .lg{display:flex;align-items:center;gap:4px}
+.chart-meta .lg i{display:inline-block;width:10px;height:2px;vertical-align:middle}
+.chart-bar-wrap,.chart-line-wrap{position:relative;height:140px}
+.chart-bar-wrap canvas,.chart-line-wrap canvas{width:100% !important;height:140px !important}
+
+/* 发电曲线顶部两个数字 */
+.gen-stat{display:flex;gap:14px;padding:8px;margin-bottom:6px;background:rgba(90,209,255,.05);border-left:2px solid #7ce0b0;font-size:12px}
+.gen-stat .it{flex:1}
+.gen-stat .it .lbl{color:var(--text-dim);font-size:11px}
+.gen-stat .it .v{color:#fff;font-size:16px;font-weight:600;margin-top:2px}
+.gen-stat .it .v small{color:#7ce0b0;font-size:11px;margin-left:3px;font-weight:400}
+
+.panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.metric{display:flex;gap:18px;align-items:baseline;margin-bottom:6px}
+.metric .big{font-size:28px;color:var(--cyan-bright);font-weight:600;letter-spacing:1px;text-shadow:0 0 10px rgba(90,209,255,.5)}
+.metric small{font-size:11px;color:var(--text-dim)}
+.time-toggle{display:flex;gap:2px;font-size:11px}
+.time-toggle span{padding:3px 10px;background:rgba(20,40,70,.6);border:1px solid rgba(90,209,255,.2);color:var(--text-dim);cursor:pointer}
+.time-toggle span.active{background:rgba(90,209,255,.18);color:var(--cyan-bright);border-color:var(--cyan)}
+canvas.chart{width:100% !important;height:120px !important}
+
+.dev-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 20px;font-size:12px;margin-top:6px}
+.dev-grid div{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed rgba(90,209,255,.15)}
+.dev-grid span:last-child{color:var(--cyan-bright);font-weight:600}
+.dev-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.dot-on{background:#4ade80;box-shadow:0 0 6px #4ade80}
+.dot-off{background:#64748b}
+.dot-err{background:#ff6a4d;box-shadow:0 0 6px #ff6a4d;animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.3}}
+
+table.alert-tbl{width:100%;border-collapse:collapse;font-size:12px}
+table.alert-tbl th{color:var(--text-dim);font-weight:400;text-align:left;padding:6px 4px;border-bottom:1px solid rgba(90,209,255,.2);font-size:11px}
+table.alert-tbl td{padding:7px 4px;border-bottom:1px dashed rgba(90,209,255,.1);color:var(--text)}
+table.alert-tbl tr:hover td{background:rgba(90,209,255,.05)}
+table.alert-tbl td.type{color:var(--gold)}
+
+.att-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-size:12px;color:var(--text-dim)}
+.att-head b{color:var(--cyan-bright);font-size:15px;margin-left:4px}
+.att-head .rate b{color:var(--ok);font-size:18px}
+.att-ring-row{display:flex;justify-content:space-around}
+.att-ring{text-align:center;font-size:11px;color:var(--text-dim)}
+.att-ring .ring{width:62px;height:62px;position:relative;margin:0 auto 4px}
+.att-ring svg{transform:rotate(-90deg)}
+.att-ring .num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--cyan-bright);font-weight:600}
+
+.cam-card{position:relative;height:150px;background:#000;border:1px solid rgba(90,209,255,.25);overflow:hidden}
+.cam-card .cam-placeholder{
+  position:absolute;inset:0;
+  background:
+    linear-gradient(135deg,#17324d 0%,#0d2138 40%,#06131f 100%);
+  display:flex;align-items:center;justify-content:center;
+}
+.cam-card .cam-placeholder::after{
+  content:"● REC  一号教学楼";position:absolute;top:8px;left:10px;font-size:11px;color:#ff6a4d;letter-spacing:1px;
+}
+.cam-card .cam-placeholder::before{
+  content:"";position:absolute;inset:20% 15%;
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.12) 0%,transparent 40%),
+    radial-gradient(circle at 30% 60%,rgba(255,201,102,.35),transparent 50%),
+    radial-gradient(circle at 70% 40%,rgba(90,209,255,.35),transparent 50%);
+  border-radius:4px;
+}
+.cam-card .cam-label{position:absolute;top:8px;right:10px;font-size:11px;color:#fff;background:rgba(0,0,0,.5);padding:2px 8px}
+.cam-card .cam-scan{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);animation:scan 3s linear infinite}
+@keyframes scan{0%{top:0}100%{top:100%}}
+
+/* ============ 底部导航 ============ */
+.bottom-nav{
+  position:absolute;bottom:0;left:0;right:0;height:78px;z-index:10;
+  display:flex;justify-content:center;align-items:flex-end;gap:0;
+  background:linear-gradient(0deg,rgba(5,12,28,.95) 0%,rgba(5,12,28,.4) 80%,transparent 100%);
+}
+.nav-item{
+  width:180px;text-align:center;padding:14px 0;cursor:pointer;
+  font-size:14px;letter-spacing:4px;color:var(--text-dim);
+  position:relative;transition:all .25s;
+}
+.nav-item:hover{color:var(--cyan-bright)}
+.nav-item .ico{font-size:22px;display:block;margin-bottom:4px;color:var(--gold);opacity:.85}
+.nav-item.home{
+  width:140px;
+  background:radial-gradient(ellipse at bottom,rgba(228,184,103,.3),transparent 70%);
+}
+.nav-item.home .ico{
+  width:60px;height:60px;line-height:60px;border-radius:50%;margin:0 auto;
+  background:radial-gradient(circle,#e4b867 0%,#a87b2a 80%);
+  color:#1a1208;font-size:26px;box-shadow:0 0 24px rgba(228,184,103,.5);
+}
+.nav-item.home span{display:block;margin-top:4px}
+
+/* ============ 3D 热点标注 ============ */
+.hotspot{
+  position:absolute;z-index:6;pointer-events:none;
+  transform:translate(-50%,-100%);
+  font-size:12px;color:#fff;
+  padding:4px 10px;
+  background:rgba(10,30,60,.85);
+  border:1px solid var(--cyan);
+  white-space:nowrap;
+  box-shadow:0 0 12px rgba(90,209,255,.5);
+}
+.hotspot::after{
+  content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  width:2px;height:14px;background:linear-gradient(180deg,var(--cyan),transparent);
+}
+.hotspot::before{
+  content:"";position:absolute;top:calc(100% + 14px);left:50%;transform:translate(-50%,-50%);
+  width:8px;height:8px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 10px var(--cyan),0 0 0 4px rgba(90,209,255,.25);
+  animation:pulse 1.6s infinite;
+}
+@keyframes pulse{0%{box-shadow:0 0 10px var(--cyan),0 0 0 0 rgba(90,209,255,.4)}100%{box-shadow:0 0 10px var(--cyan),0 0 0 14px rgba(90,209,255,0)}}
+
+/* loading 遮罩 */
+#loading{position:absolute;inset:0;z-index:100;background:var(--bg-deep);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;color:var(--cyan-bright);font-size:14px;letter-spacing:4px;transition:opacity .6s;}
+#loading.hide{opacity:0;pointer-events:none}
+.loader-ring{width:60px;height:60px;border:2px solid rgba(90,209,255,.2);border-top-color:var(--cyan);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="loading">
+    <div class="loader-ring"></div>
+    <div>DIGITAL CAMPUS INITIALIZING…</div>
+  </div>
+
+  <div id="scene"></div>
+  <div id="map-bg" style="background-image:url('img/rjgf003.png')"></div>
+
+  <div class="map-mode-switch">
+    <div class="lbl">地图模式</div>
+    <span class="active" data-mapmode="1">▸ 地图模式</span>
+    <span data-mapmode="2">▸ 地图模式 2</span>
+  </div>
+
+  <div class="topbar">
+    <div class="time"><span id="date"></span><b id="week"></b><span id="clock"></span></div>
+    <h1>3D 可视化智慧校园</h1>
+    <div class="right-tools">
+      <span id="btn-model">🏛 模型模式</span>
+      <span id="btn-day">☀ 日间模式</span>
+      <span class="active" id="btn-night">☾ 夜间模式</span>
+      <span id="btn-full">⛶</span>
+    </div>
+  </div>
+
+  <div class="mode-switch">
+    <span class="active" id="mode-stat">统计模式</span>
+    <span id="mode-clean">纯净模式</span>
+  </div>
+
+  <div class="left-stack">
+    <!-- 电站总览 -->
+    <div class="panel">
+      <span class="corner-tr"></span><span class="corner-bl"></span>
+      <div class="p-head">
+        <span class="ico">▦</span><span class="t">电站总览</span>
+        <span class="deco"><i></i><i></i><i></i></span>
+      </div>
+      <div class="gauge-row">
+        <div class="gauge">
+          <svg width="130" height="130">
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#7ce0b0"/>
+                <stop offset="100%" stop-color="#5ad1ff"/>
+              </linearGradient>
+            </defs>
+            <circle cx="65" cy="65" r="56" stroke="rgba(90,209,255,.15)" stroke-width="6" fill="none"/>
+            <circle cx="65" cy="65" r="56" stroke="url(#gaugeGrad)" stroke-width="6" fill="none"
+              stroke-dasharray="352" stroke-dashoffset="84" stroke-linecap="round"/>
+          </svg>
+          <div class="gauge-c">
+            <div class="num" id="gaugePower">19.65</div>
+            <div class="unit">MW</div>
+            <div class="lbl">实时功率</div>
+          </div>
+        </div>
+        <div class="gauge-info">
+          <div class="row"><span class="k">累计运行：</span><span class="v">272 <small>天</small></span></div>
+          <div class="row"><span class="k">并网时间：</span><span class="v">2025/01/18</span></div>
+          <div class="row"><span class="k">装机容量：</span><span class="v">100 <small>kWp</small></span></div>
+        </div>
+      </div>
+      <div class="eco-row">
+        <div class="item"><div class="ic">⛏</div><div class="lbl">节约标准煤(tec)</div><div class="num">2456.40</div></div>
+        <div class="item"><div class="ic">CO₂</div><div class="lbl">二氧化碳减排(tonne)</div><div class="num">15.37</div></div>
+        <div class="item"><div class="ic">🌲</div><div class="lbl">等效种植数量(tree)</div><div class="num">805</div></div>
+      </div>
+    </div>
+
+    <!-- 设备资产 -->
+    <div class="panel">
+      <span class="corner-tr"></span><span class="corner-bl"></span>
+      <div class="p-head">
+        <span class="ico">▦</span><span class="t">设备资产</span>
+        <span class="deco"><i></i><i></i><i></i></span>
+      </div>
+      <div class="dev-total"><span class="lbl">设备总数</span><span class="num">999</span></div>
+      <div class="dev-list">
+        <div class="dev-row"><div class="dev-name"><span class="di">▥</span>逆变器</div>
+          <div class="dev-stat">正常<b>99</b></div><div class="dev-stat warn">告警<b>10</b></div><div class="dev-stat off">离线<b>1</b></div></div>
+        <div class="dev-row"><div class="dev-name"><span class="di">▤</span>计量表</div>
+          <div class="dev-stat">正常<b>0</b></div><div class="dev-stat off">离线<b>1</b></div></div>
+        <div class="dev-row"><div class="dev-name"><span class="di">⛅</span>气象站</div>
+          <div class="dev-stat">正常<b>8</b></div><div class="dev-stat off">离线<b>1</b></div></div>
+        <div class="dev-row"><div class="dev-name"><span class="di">⚡</span>箱式变压器</div>
+          <div class="dev-stat">正常<b>8</b></div><div class="dev-stat warn">告警<b>0</b></div><div class="dev-stat off">离线<b>0</b></div></div>
+        <div class="dev-row"><div class="dev-name"><span class="di">▣</span>汇流箱</div>
+          <div class="dev-stat">正常<b>0</b></div><div class="dev-stat warn">告警<b>0</b></div><div class="dev-stat off">离线<b>0</b></div></div>
+      </div>
+    </div>
+
+    <!-- 运维记录 -->
+    <div class="panel">
+      <span class="corner-tr"></span><span class="corner-bl"></span>
+      <div class="p-head">
+        <span class="ico">▦</span><span class="t">运维记录 (10)</span>
+        <span class="deco"><i></i><i></i><i></i></span>
+      </div>
+      <table class="op-tbl">
+        <thead><tr><th>派单时间</th><th>工单状态</th><th>工单类型</th></tr></thead>
+        <tbody>
+          <tr><td>2025-01-18 14:30</td><td><span class="op-badge run">执行中</span></td><td>巡检工单</td></tr>
+          <tr><td>2025-01-18 14:00</td><td><span class="op-badge proc">处理中</span></td><td>临时工单</td></tr>
+          <tr><td>2025-01-17 13:00</td><td><span class="op-badge proc">处理中</span></td><td>消缺工单</td></tr>
+          <tr><td>2025-01-15 10:00</td><td><span class="op-badge wait">未开始</span></td><td>发电预警消缺单</td></tr>
+          <tr><td>2025-01-10 08:00</td><td><span class="op-badge done">已完成</span></td><td>消缺工单</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="right-stack">
+    <!-- 计划完成率 -->
+    <div class="panel">
+      <span class="corner-tr"></span><span class="corner-bl"></span>
+      <div class="p-head">
+        <span class="ico">▦</span><span class="t">计划完成率</span>
+        <span class="deco"><i></i><i></i><i></i></span>
+      </div>
+      <div class="plan-list">
+        <div class="plan-row">
+          <div class="top"><div class="k">月日历进度</div><div class="pct">10 %</div></div>
+          <div class="bar"><div class="fill" style="width:10%"></div></div>
+          <div class="sub"><span></span><span>10 / 30 天</span></div>
+        </div>
+        <div class="plan-row">
+          <div class="top"><div class="k">月发电量完成率</div><div class="pct">11 %</div></div>
+          <div class="bar"><div class="fill" style="width:11%"></div></div>
+          <div class="sub"><span></span><span>110 / 1000 kWh</span></div>
+        </div>
+        <div class="plan-row">
+          <div class="top"><div class="k">年日历进度</div><div class="pct">85 %</div></div>
+          <div class="bar"><div class="fill" style="width:85%"></div></div>
+          <div class="sub"><span></span><span>310 / 365 天</span></div>
+        </div>
+        <div class="plan-row">
+          <div class="top"><div class="k">年发电量完成率</div><div class="pct">70 %</div></div>
+          <div class="bar"><div class="fill" style="width:70%"></div></div>
+          <div class="sub"><span></span><span>700 / 1000 万kWh</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 发电量统计（柱状图） -->
+    <div class="panel">
+      <span class="corner-tr"></span><span class="corner-bl"></span>
+      <div class="p-head">
+        <span class="ico">▦</span><span class="t">发电量统计</span>
+        <span class="right-meta">日 <b>月</b> 2025/01</span>
+      </div>
+      <div class="chart-meta"><span style="color:#7ce0b0">电量 (kWh)</span></div>
+      <div class="chart-bar-wrap"><canvas id="chart-gen-bar"></canvas></div>
+    </div>
+
+    <!-- 发电曲线（双轴线图） -->
+    <div class="panel">
+      <span class="corner-tr"></span><span class="corner-bl"></span>
+      <div class="p-head">
+        <span class="ico">▦</span><span class="t">发电曲线</span>
+        <span class="right-meta">2025/01/18</span>
+      </div>
+      <div class="gen-stat">
+        <div class="it"><div class="lbl">日发电量 (kWh)</div><div class="v">10.00</div></div>
+        <div class="it"><div class="lbl">有效利用时长 (h)</div><div class="v">2.00</div></div>
+      </div>
+      <div class="chart-meta">
+        <span style="color:#7ce0b0">kW</span>
+        <div class="legends">
+          <span class="lg"><i style="background:#7ce0b0"></i>发电功率</span>
+          <span class="lg"><i style="background:#a855f7"></i>辐照度</span>
+        </div>
+        <span style="color:#a855f7">W/m²</span>
+      </div>
+      <div class="chart-line-wrap"><canvas id="chart-gen-line"></canvas></div>
+    </div>
+  </div>
+
+  <div class="hotspot" id="hs-1" style="left:50%;top:46%;display:none">教学楼 A · 在线 128</div>
+  <div class="hotspot" id="hs-2" style="left:34%;top:52%;display:none">运动场 · 人流 42</div>
+  <div class="hotspot" id="hs-3" style="left:62%;top:50%;display:none">新能源示范区 · 发电 86kW</div>
+
+  <div class="bottom-nav">
+    <div class="nav-item"><span class="ico">⚙</span><span>通行管理</span></div>
+    <div class="nav-item"><span class="ico">🛡</span><span>校园安全</span></div>
+    <div class="nav-item home"><span class="ico">⌂</span><span>智慧中心</span></div>
+    <div class="nav-item"><span class="ico">▦</span><span>智能设备</span></div>
+    <div class="nav-item"><span class="ico">▶</span><span>智能教室</span></div>
+  </div>
+</div>
+
+<!-- =====================  Chart.js HUD 图表  ===================== -->
+<script>
+const weekNames=['日','一','二','三','四','五','六'];
+function updateClock(){
+  const d=new Date();
+  document.getElementById('date').textContent=`${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  document.getElementById('week').textContent=`星期${weekNames[d.getDay()]}`;
+  document.getElementById('clock').textContent=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+}
+setInterval(updateClock,1000);updateClock();
+
+Chart.defaults.color='#7e9bbf';
+Chart.defaults.font.family='inherit';
+Chart.defaults.font.size=10;
+
+function makeGradient(ctx,color){
+  const g=ctx.createLinearGradient(0,0,0,120);
+  g.addColorStop(0,color+'aa');g.addColorStop(1,color+'00');return g;
+}
+
+// 红色阈值线插件
+const thresholdPlugin = {
+  id:'threshold',
+  afterDraw(chart, args, opts){
+    if(!opts || opts.value==null) return;
+    const {ctx, chartArea:{left,right}, scales:{y}} = chart;
+    const yp = y.getPixelForValue(opts.value);
+    ctx.save();
+    ctx.strokeStyle = opts.color || '#ff5544';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.moveTo(left,yp);ctx.lineTo(right,yp);ctx.stroke();
+    ctx.restore();
+  }
+};
+Chart.register(thresholdPlugin);
+
+window.addEventListener('load',()=>{
+  // ====== 发电量统计（柱状图，红色阈值线） ======
+  const bctx = document.getElementById('chart-gen-bar').getContext('2d');
+  const bGrad = bctx.createLinearGradient(0,0,0,140);
+  bGrad.addColorStop(0,'#5ad1ff');bGrad.addColorStop(1,'rgba(90,209,255,.2)');
+  const barData = [380,420,500,460,530,490,510,470,440,420,400,380];
+  new Chart(bctx,{
+    type:'bar',
+    data:{
+      labels:['01','02','03','04','05','06','07','08','09','10','11','12'],
+      datasets:[{data:barData, backgroundColor:bGrad, borderRadius:2, barPercentage:.65}]
+    },
+    options:{
+      plugins:{legend:{display:false},
+        tooltip:{displayColors:false},
+        threshold:{value:400, color:'#ff5544'}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10},color:'#7e9bbf'}},
+        y:{grid:{color:'rgba(90,209,255,.1)'},ticks:{font:{size:10},stepSize:100},min:0,max:600,
+          title:{display:false}}
+      },
+      responsive:true,maintainAspectRatio:false}
+  });
+
+  // ====== 发电曲线（双轴：kW + W/m²） ======
+  const lctx = document.getElementById('chart-gen-line').getContext('2d');
+  const lGrad1 = lctx.createLinearGradient(0,0,0,140);
+  lGrad1.addColorStop(0,'rgba(124,224,176,.5)');lGrad1.addColorStop(1,'rgba(124,224,176,0)');
+  const labels=['0时','4时','8时','10时','12时','14时','16时','18时','20时','24时'];
+  const power=[0,0,30,180,420,520,400,200,40,0];
+  const irradiance=[0,0,40,90,160,170,140,80,20,0];
+  new Chart(lctx,{
+    data:{
+      labels,
+      datasets:[
+        {type:'line',label:'发电功率',data:power,
+          borderColor:'#7ce0b0',borderWidth:2,tension:.4,
+          backgroundColor:lGrad1,fill:true,pointRadius:0,yAxisID:'y'},
+        {type:'line',label:'辐照度',data:irradiance,
+          borderColor:'#a855f7',borderWidth:2,tension:.4,
+          backgroundColor:'transparent',pointRadius:0,yAxisID:'y1'}
+      ]
+    },
+    options:{
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{font:{size:10},color:'#7e9bbf'}},
+        y:{position:'left',grid:{color:'rgba(90,209,255,.1)'},ticks:{font:{size:10},stepSize:100,color:'#7ce0b0'},min:0,max:600},
+        y1:{position:'right',grid:{display:false},ticks:{font:{size:10},stepSize:40,color:'#a855f7'},min:0,max:200}
+      },
+      responsive:true,maintainAspectRatio:false}
+  });
+});
+
+// 实时功率跳动
+setInterval(()=>{
+  const el=document.getElementById('gaugePower');
+  if(!el)return;
+  const n=(19+Math.random()*1.5).toFixed(2);
+  el.textContent=n;
+},2200);
+</script>
+
+<!-- =====================  Three.js 3D 智慧校园（ES Module + Bloom）  ===================== -->
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* --------- 颜色常量 --------- */
+const C = {
+  wallDay:    0x2a4e8a,
+  wallNight:  0x16315c,
+  roofDay:    0x1a3458,
+  roofNight:  0x0d1f3a,
+  window:     0xffc966,
+  edge:       0x5ad1ff,
+  edgeBright: 0x8ce9ff,
+  ground:     0x050d1c,
+  trackRed:   0x8a3a2e,
+  grassNight: 0x1a4a2a,
+  cyan:       0x5ad1ff,
+  cyanSoft:   0x2a7aa8,
+  gold:       0xe4b867,
+};
+
+let scene,camera,renderer,composer,clock;
+let keyLight,ambLight,hemiLight;
+const hotspots3D = [];
+const allBuildings = [];
+const animItems = []; // {update(t)}
+const techItems = []; // 科技风专属元素 (描边/底座/能量环/光伏/风机/信号塔/能源区)，在"模型模式"下隐藏
+const treeMats = [];  // 树材质（模型模式切为暖绿）
+let groundMesh, gridHelper;
+let currentMode = 'night'; // 'model' | 'day' | 'night'
+
+/* ============================================================
+   初始化场景
+============================================================ */
+function initScene(){
+  const container = document.getElementById('scene');
+  const w = container.clientWidth, h = container.clientHeight;
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x030a1a, 0.018);
+
+  camera = new THREE.PerspectiveCamera(45, w/h, 0.1, 500);
+  camera.position.set(38,28,38);
+  camera.lookAt(0,0,0);
+
+  renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(w,h);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  container.appendChild(renderer.domElement);
+
+  // 灯光
+  ambLight = new THREE.AmbientLight(0x3a5a8c, 0.35);
+  scene.add(ambLight);
+  hemiLight = new THREE.HemisphereLight(0x6688cc, 0x0a1830, 0.45);
+  scene.add(hemiLight);
+  keyLight = new THREE.DirectionalLight(0x88bbff, 0.6);
+  keyLight.position.set(30,50,20);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.set(1024,1024);
+  keyLight.shadow.camera.left=-50;keyLight.shadow.camera.right=50;
+  keyLight.shadow.camera.top=50;keyLight.shadow.camera.bottom=-50;
+  scene.add(keyLight);
+
+  // 地面
+  buildGround();
+
+  // 校园
+  buildCampus();
+
+  // 新能源示范区
+  buildEnergyZone();
+
+  // 道路
+  buildRoads();
+
+  // 车辆
+  buildCars();
+
+  // 后期合成 (Bloom)
+  composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(w,h), 0.85, 0.55, 0.15);
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+  window.__bloom = bloom;
+
+  clock = new THREE.Clock();
+  animate();
+}
+
+/* ============================================================
+   地面 — 靛蓝底 + cyan 网格 + 流动电路线
+============================================================ */
+function buildGround(){
+  // 基础地面（深靛蓝，轻微反光）
+  const groundMat = new THREE.MeshStandardMaterial({
+    color: C.ground, roughness: 0.6, metalness: 0.3
+  });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(120,90), groundMat);
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+  groundMesh = ground;
+
+  // cyan 网格线
+  const grid = new THREE.GridHelper(120, 60, C.cyan, 0x1a3550);
+  grid.material.transparent = true;
+  grid.material.opacity = 0.35;
+  grid.position.y = 0.02;
+  scene.add(grid);
+  gridHelper = grid;
+  techItems.push(grid);
+
+  // 地面流动"电路线" — ShaderMaterial，cyan 条带沿 x 流动
+  const circuitMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(C.cyan) } },
+    vertexShader: `
+      varying vec2 vUv;
+      void main(){
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.);
+      }`,
+    fragmentShader: `
+      varying vec2 vUv;
+      uniform float uTime;
+      uniform vec3 uColor;
+      void main(){
+        // 4 条电路线沿 x 移动
+        float a = 0.0;
+        for(int i=0;i<4;i++){
+          float fi = float(i);
+          float y = fract(vUv.y * 3.0 + fi*0.25);
+          float x = fract(vUv.x - uTime*0.08 - fi*0.3);
+          float line = smoothstep(0.02,0.0,abs(y-0.5));
+          float pulse = smoothstep(0.0,0.1,x)*smoothstep(0.3,0.1,x);
+          a += line * pulse;
+        }
+        // 额外静态细网格
+        vec2 g = fract(vUv*40.0);
+        float gl2 = smoothstep(0.02,0.0,min(g.x,g.y));
+        a += gl2*0.08;
+        gl_FragColor = vec4(uColor, a*0.7);
+      }`,
+  });
+  const circuit = new THREE.Mesh(new THREE.PlaneGeometry(120,90), circuitMat);
+  circuit.rotation.x = -Math.PI/2;
+  circuit.position.y = 0.03;
+  scene.add(circuit);
+  techItems.push(circuit);
+  animItems.push({update:(t)=>{ circuitMat.uniforms.uTime.value = t; }});
+}
+
+/* ============================================================
+   建筑生成 (科技蓝风格 + cyan 边缘描线 + 暖金窗户 + 底座发光)
+============================================================ */
+function makeBuilding(w, h, d, opts={}){
+  const g = new THREE.Group();
+  const wallColor = opts.wall || C.wallNight;
+  const roofColor = opts.roof || C.roofNight;
+
+  // 墙体
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: wallColor, roughness: 0.5, metalness: 0.5,
+    emissive: 0x081830, emissiveIntensity: 0.35
+  });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), bodyMat);
+  body.position.y = h/2;
+  body.castShadow = true; body.receiveShadow = true;
+  g.add(body);
+
+  // 楼层窗户带（暖金发光）
+  const floors = Math.max(3, Math.floor(h/1.1));
+  const winMat = new THREE.MeshStandardMaterial({
+    color: 0xffb866, roughness: 0.2, metalness: 0.1,
+    emissive: new THREE.Color(C.window), emissiveIntensity: 1.4
+  });
+  for(let i=0;i<floors;i++){
+    const y = 0.7 + i*1.1;
+    if(y > h - 0.3) break;
+    const strip = new THREE.Mesh(
+      new THREE.BoxGeometry(w*1.005, 0.35, d*1.005),
+      winMat
+    );
+    strip.position.y = y;
+    g.add(strip);
+  }
+
+  // 屋顶
+  const roofMat = new THREE.MeshStandardMaterial({
+    color: roofColor, roughness: 0.7, metalness: 0.3,
+    emissive: 0x0a1a32, emissiveIntensity: 0.4
+  });
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(w*1.04, 0.25, d*1.04), roofMat
+  );
+  roof.position.y = h + 0.125;
+  roof.castShadow = true;
+  g.add(roof);
+
+  // 屋顶 cyan 边
+  const roofEdgeGeo = new THREE.EdgesGeometry(roof.geometry);
+  const roofEdge = new THREE.LineSegments(
+    roofEdgeGeo,
+    new THREE.LineBasicMaterial({color: C.edgeBright, transparent:true, opacity:0.95})
+  );
+  roofEdge.position.copy(roof.position);
+  g.add(roofEdge);
+
+  // 整体 cyan 描边（墙体）
+  const bodyEdgeGeo = new THREE.EdgesGeometry(body.geometry);
+  const bodyEdge = new THREE.LineSegments(
+    bodyEdgeGeo,
+    new THREE.LineBasicMaterial({color: C.edge, transparent:true, opacity:0.8})
+  );
+  bodyEdge.position.copy(body.position);
+  g.add(bodyEdge);
+
+  // 底座发光框
+  const baseGeo = new THREE.PlaneGeometry(w*1.25, d*1.25);
+  const baseMat = new THREE.ShaderMaterial({
+    transparent:true, depthWrite:false,
+    uniforms: { uColor:{value:new THREE.Color(C.cyan)} },
+    vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`varying vec2 vUv;uniform vec3 uColor;
+      void main(){
+        vec2 d = abs(vUv-0.5)*2.0;
+        float edge = max(d.x,d.y);
+        float frame = smoothstep(0.85,0.95,edge) - smoothstep(0.98,1.0,edge);
+        float glow = smoothstep(0.7,1.0,edge)*0.2;
+        gl_FragColor = vec4(uColor, clamp(frame+glow,0.0,1.0));
+      }`
+  });
+  const base = new THREE.Mesh(baseGeo, baseMat);
+  base.rotation.x = -Math.PI/2;
+  base.position.y = 0.04;
+  g.add(base);
+
+  g.userData.winMat = winMat;
+  g.userData.bodyMat = bodyMat;
+  g.userData.roofMat = roofMat;
+  g.userData.bodyEdge = bodyEdge;
+  g.userData.roofEdge = roofEdge;
+  g.userData.base = base;
+  techItems.push(bodyEdge, roofEdge, base);
+  return g;
+}
+
+function buildCampus(){
+  // [x, z, w, h, d, name]
+  const buildings = [
+    [ 10, -8, 10, 5, 5,  '教学楼 A'],
+    [ 18, -2,  8, 4.5, 4,'教学楼 B'],
+    [ 10,  6, 10, 4, 5,  '教学楼 C'],
+    [ 22,  8,  7, 5.5, 4.5,'实验楼'],
+    [-16,  4,  8, 3.5, 6, '食堂'],
+    [-22, -6,  6, 6, 4,   '宿舍1'],
+    [-22,  2,  6, 6, 4,   '宿舍2'],
+    [  2,  4,  6, 3, 6,   '体育馆'],
+  ];
+  buildings.forEach(([x,z,w,h,d,name])=>{
+    const b = makeBuilding(w,h,d);
+    b.position.set(x,0,z);
+    b.userData.name = name;
+    scene.add(b);
+    allBuildings.push(b);
+  });
+
+  // 体育馆圆顶
+  const dome = new THREE.Mesh(
+    new THREE.SphereGeometry(3.2,32,16,0,Math.PI*2,0,Math.PI/2),
+    new THREE.MeshStandardMaterial({
+      color: 0x1a3458, roughness:0.4, metalness:0.6,
+      emissive: 0x0a1830, emissiveIntensity: 0.5
+    })
+  );
+  dome.position.set(2,3,4); dome.castShadow = true;
+  scene.add(dome);
+  // 圆顶 cyan 网格
+  const domeEdge = new THREE.LineSegments(
+    new THREE.WireframeGeometry(dome.geometry),
+    new THREE.LineBasicMaterial({color: C.edge, transparent:true, opacity:0.6})
+  );
+  domeEdge.position.copy(dome.position);
+  scene.add(domeEdge);
+  techItems.push(domeEdge);
+  dome.userData.isDome = true;
+  window.__dome = dome;
+
+  // 操场 跑道 + 草坪
+  const fieldGroup = new THREE.Group();
+  const trackShape = new THREE.Shape();
+  trackShape.absellipse(0,0,10,6,0,Math.PI*2,false,0);
+  const hole = new THREE.Path();
+  hole.absellipse(0,0,8,4,0,Math.PI*2,true,0);
+  trackShape.holes.push(hole);
+  const track = new THREE.Mesh(
+    new THREE.ShapeGeometry(trackShape),
+    new THREE.MeshStandardMaterial({color:C.trackRed, roughness:0.8, emissive:0x2a1408, emissiveIntensity:0.3})
+  );
+  track.rotation.x = -Math.PI/2; track.position.y = 0.05;
+  fieldGroup.add(track);
+  const gShape = new THREE.Shape();
+  gShape.absellipse(0,0,7.8,3.8,0,Math.PI*2,false,0);
+  const grass = new THREE.Mesh(
+    new THREE.ShapeGeometry(gShape),
+    new THREE.MeshStandardMaterial({color:C.grassNight, roughness:1, emissive:0x06140a, emissiveIntensity:0.4})
+  );
+  grass.rotation.x = -Math.PI/2; grass.position.y = 0.06;
+  fieldGroup.add(grass);
+  // 跑道 cyan 外轮廓
+  const trackCurve = new THREE.EllipseCurve(0,0,10,6,0,Math.PI*2,false,0);
+  const pts = trackCurve.getPoints(64).map(p=>new THREE.Vector3(p.x, 0.08, p.y));
+  const trackEdge = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color: C.edgeBright, transparent:true, opacity:0.9})
+  );
+  fieldGroup.add(trackEdge);
+  fieldGroup.position.set(-6,0,-10);
+  scene.add(fieldGroup);
+  techItems.push(trackEdge);
+  window.__grassMat = grass.material;
+  window.__trackMat = track.material;
+
+  // 树
+  const treeGeo = new THREE.ConeGeometry(0.55, 1.6, 6);
+  const treeMat = new THREE.MeshStandardMaterial({
+    color: 0x1a4a5a, roughness:0.8,
+    emissive: 0x0a2a35, emissiveIntensity: 0.6
+  });
+  treeMats.push(treeMat);
+  for(let i=0;i<42;i++){
+    const t = new THREE.Mesh(treeGeo, treeMat);
+    const side = Math.random()>.5?1:-1;
+    t.position.set(
+      (Math.random()-.5)*90,
+      0.8,
+      side*(18+Math.random()*4)
+    );
+    t.castShadow = true;
+    scene.add(t);
+  }
+
+  // —— 主楼（智慧中心）屋顶：悬浮线框立方 + 能量环 + 光伏板 —— //
+  const mainX = 10, mainZ = -8, mainTop = 5;
+
+  // 悬浮数据立方
+  const cubeSize = 1.6;
+  const cube = new THREE.Mesh(
+    new THREE.BoxGeometry(cubeSize,cubeSize,cubeSize),
+    new THREE.MeshBasicMaterial({color:0x0a1830, transparent:true, opacity:0.15})
+  );
+  const cubeEdge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(cube.geometry),
+    new THREE.LineBasicMaterial({color:C.edgeBright})
+  );
+  const cubeGroup = new THREE.Group();
+  cubeGroup.add(cube); cubeGroup.add(cubeEdge);
+  cubeGroup.position.set(mainX, mainTop+3, mainZ);
+  scene.add(cubeGroup);
+  techItems.push(cubeGroup);
+  animItems.push({update:(t)=>{
+    cubeGroup.rotation.y = t*0.5;
+    cubeGroup.rotation.x = Math.sin(t*0.3)*0.3;
+    cubeGroup.position.y = mainTop+3 + Math.sin(t*1.2)*0.15;
+  }});
+
+  // 能量环（智慧中心底部）
+  const ringGroup = new THREE.Group();
+  for(let i=0;i<3;i++){
+    const r = 5.5 + i*0.6;
+    const ringGeo = new THREE.RingGeometry(r, r+0.08, 64);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: C.cyan, transparent:true, opacity: 0.9-i*0.25, side:THREE.DoubleSide
+    });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI/2;
+    ring.position.y = 0.1 + i*0.02;
+    ring.userData.i = i;
+    ringGroup.add(ring);
+  }
+  ringGroup.position.set(mainX, 0, mainZ);
+  scene.add(ringGroup);
+  techItems.push(ringGroup);
+  animItems.push({update:(t)=>{
+    ringGroup.children.forEach((r,i)=>{
+      r.rotation.z = t*(0.3+i*0.15)*(i%2?1:-1);
+      r.material.opacity = (0.5 + Math.sin(t*2+i)*0.4)*(0.9-i*0.25);
+    });
+  }});
+
+  // 教学楼 A 屋顶光伏板阵列
+  addSolarArrayOnRoof(mainX, mainTop+0.3, mainZ, 8, 4, 4, 2);
+  addSolarArrayOnRoof(10, 4+0.3, 6, 8, 4, 4, 2);
+  addSolarArrayOnRoof(22, 5.5+0.3, 8, 6, 3, 3, 2);
+
+  // 信号塔（体育馆旁）
+  addSignalTower(5, -2, 7);
+
+  // 3D 热点锚点
+  const spot = (x,y,z,el) => {
+    const o = new THREE.Object3D();
+    o.position.set(x,y,z);
+    scene.add(o);
+    hotspots3D.push({obj:o, el: document.getElementById(el)});
+  };
+  spot(14, 7, -6, 'hs-1');
+  spot(-6, 3, -10, 'hs-2');
+  spot(30, 4, -14, 'hs-3');
+  ['hs-1','hs-2','hs-3'].forEach(id=>document.getElementById(id).style.display='block');
+}
+
+/* ============================================================
+   科技装备：光伏板、风机、信号塔
+============================================================ */
+function addSolarArrayOnRoof(cx, cy, cz, w, d, cols, rows){
+  const group = new THREE.Group();
+  const panelW = w/cols * 0.8;
+  const panelD = d/rows * 0.75;
+  const panelMat = new THREE.MeshStandardMaterial({
+    color: 0x0a1a3a, roughness: 0.2, metalness: 0.8,
+    emissive: 0x0a2a5a, emissiveIntensity: 0.5
+  });
+  const gridMat = new THREE.LineBasicMaterial({color: C.cyan, transparent:true, opacity:0.6});
+  for(let i=0;i<cols;i++){
+    for(let j=0;j<rows;j++){
+      const p = new THREE.Mesh(new THREE.BoxGeometry(panelW, 0.08, panelD), panelMat);
+      const x = -w/2 + panelW/2 + i*(w/cols);
+      const z = -d/2 + panelD/2 + j*(d/rows);
+      p.position.set(x, 0, z);
+      p.rotation.x = -0.3;
+      group.add(p);
+      // 十字纹理（线框）
+      const edge = new THREE.LineSegments(
+        new THREE.EdgesGeometry(p.geometry),
+        gridMat
+      );
+      edge.position.copy(p.position); edge.rotation.copy(p.rotation);
+      group.add(edge);
+    }
+  }
+  group.position.set(cx, cy, cz);
+  scene.add(group);
+  techItems.push(group);
+  return group;
+}
+
+function addWindTurbine(x, z, scale=1){
+  const g = new THREE.Group();
+  // 塔
+  const tower = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15*scale, 0.3*scale, 5*scale, 10),
+    new THREE.MeshStandardMaterial({color:0xc8d4e4, roughness:0.4, metalness:0.6,
+      emissive:0x283a4a, emissiveIntensity:0.3})
+  );
+  tower.position.y = 2.5*scale;
+  tower.castShadow = true;
+  g.add(tower);
+  // 机舱
+  const nacelle = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8*scale, 0.5*scale, 0.5*scale),
+    new THREE.MeshStandardMaterial({color:0xe8eef6, roughness:0.3, metalness:0.7})
+  );
+  nacelle.position.set(0, 5*scale, 0.1*scale);
+  g.add(nacelle);
+  // 叶片组（绕 z 轴旋转）
+  const bladeGroup = new THREE.Group();
+  bladeGroup.position.set(0, 5*scale, 0.4*scale);
+  const bladeGeo = new THREE.BoxGeometry(0.08*scale, 2.5*scale, 0.2*scale);
+  const bladeMat = new THREE.MeshStandardMaterial({color:0xffffff, roughness:0.3,
+    emissive:0x556677, emissiveIntensity:0.3});
+  for(let i=0;i<3;i++){
+    const b = new THREE.Mesh(bladeGeo, bladeMat);
+    b.position.y = 1.2*scale;
+    const holder = new THREE.Group();
+    holder.rotation.z = i * Math.PI * 2/3;
+    holder.add(b);
+    bladeGroup.add(holder);
+  }
+  g.add(bladeGroup);
+  g.position.set(x, 0, z);
+  scene.add(g);
+  techItems.push(g);
+  animItems.push({update:(t)=>{ bladeGroup.rotation.z = t*2.0; }});
+  return g;
+}
+
+function addSignalTower(x, y, z){
+  const g = new THREE.Group();
+  const segments = 4, hStep = 1.3, baseR = 0.6;
+  for(let i=0;i<segments;i++){
+    const h = hStep;
+    const rBot = baseR*(1 - i*0.2);
+    const rTop = baseR*(1 - (i+1)*0.2);
+    const yPos = i*h + h/2;
+    // 4 根立柱（线框感）
+    for(let k=0;k<4;k++){
+      const a = k*Math.PI/2;
+      const pBot = new THREE.Vector3(Math.cos(a)*rBot, i*h, Math.sin(a)*rBot);
+      const pTop = new THREE.Vector3(Math.cos(a)*rTop, (i+1)*h, Math.sin(a)*rTop);
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([pBot,pTop]),
+        new THREE.LineBasicMaterial({color:C.edge})
+      );
+      g.add(line);
+    }
+    // 横向交叉
+    for(let k=0;k<4;k++){
+      const a1 = k*Math.PI/2;
+      const a2 = ((k+1)%4)*Math.PI/2;
+      const p1 = new THREE.Vector3(Math.cos(a1)*rBot, i*h, Math.sin(a1)*rBot);
+      const p2 = new THREE.Vector3(Math.cos(a2)*rTop, (i+1)*h, Math.sin(a2)*rTop);
+      const p3 = new THREE.Vector3(Math.cos(a2)*rBot, i*h, Math.sin(a2)*rBot);
+      const p4 = new THREE.Vector3(Math.cos(a1)*rTop, (i+1)*h, Math.sin(a1)*rTop);
+      g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([p1,p2]),
+        new THREE.LineBasicMaterial({color:C.edge, transparent:true, opacity:0.6})));
+      g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([p3,p4]),
+        new THREE.LineBasicMaterial({color:C.edge, transparent:true, opacity:0.6})));
+    }
+  }
+  // 顶部红灯
+  const tip = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18, 12, 8),
+    new THREE.MeshBasicMaterial({color:0xff4a4a})
+  );
+  tip.position.y = segments*hStep + 0.3;
+  g.add(tip);
+  animItems.push({update:(t)=>{
+    tip.material.color.setHSL(0, 1, 0.4 + Math.abs(Math.sin(t*2))*0.4);
+  }});
+  g.position.set(x, y, z);
+  scene.add(g);
+  techItems.push(g);
+}
+
+/* ============================================================
+   新能源示范区（东北角）
+============================================================ */
+function buildEnergyZone(){
+  // 底座 + cyan 框
+  const zone = new THREE.Group();
+  const plate = new THREE.Mesh(
+    new THREE.BoxGeometry(22, 0.15, 14),
+    new THREE.MeshStandardMaterial({color:0x0a1628, roughness:0.3, metalness:0.7,
+      emissive:0x0a1a32, emissiveIntensity:0.4})
+  );
+  plate.position.y = 0.08;
+  zone.add(plate);
+  const plateEdge = new THREE.LineSegments(
+    new THREE.EdgesGeometry(plate.geometry),
+    new THREE.LineBasicMaterial({color:C.edgeBright})
+  );
+  plateEdge.position.y = 0.08;
+  zone.add(plateEdge);
+  zone.position.set(28, 0, -14);
+  scene.add(zone);
+  techItems.push(zone);
+
+  // 地面大型光伏阵列
+  const solar = new THREE.Group();
+  const panelMat = new THREE.MeshStandardMaterial({
+    color: 0x0a1a4a, roughness:0.2, metalness:0.85,
+    emissive: 0x0a2a7a, emissiveIntensity: 0.7
+  });
+  for(let i=0;i<4;i++){
+    for(let j=0;j<3;j++){
+      const p = new THREE.Mesh(new THREE.BoxGeometry(3, 0.1, 1.6), panelMat);
+      p.position.set(-7 + i*4.5, 0.6, -3 + j*2.5);
+      p.rotation.x = -0.5;
+      solar.add(p);
+      const edge = new THREE.LineSegments(
+        new THREE.EdgesGeometry(p.geometry),
+        new THREE.LineBasicMaterial({color:C.cyan, transparent:true, opacity:0.7})
+      );
+      edge.position.copy(p.position); edge.rotation.copy(p.rotation);
+      solar.add(edge);
+      // 支架
+      const leg = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 0.6, 0.1),
+        new THREE.MeshStandardMaterial({color:0x4a5a6a})
+      );
+      leg.position.set(p.position.x, 0.3, p.position.z);
+      solar.add(leg);
+    }
+  }
+  solar.position.set(28, 0, -15);
+  scene.add(solar);
+  techItems.push(solar);
+
+  // 风机 × 2
+  addWindTurbine(36, -8, 0.9);
+  addWindTurbine(22, -18, 0.8);
+}
+
+/* ============================================================
+   道路 + 发光边缘
+============================================================ */
+function buildRoads(){
+  const roadMat = new THREE.MeshStandardMaterial({
+    color:0x0a0f1a, roughness:0.95, metalness:0.1
+  });
+  const roads = [
+    {w:100, d:3.2, x:0, z:20},
+    {w:100, d:3.2, x:0, z:-20},
+    {w:3.2, d:40, x:38, z:0},
+    {w:3.2, d:40, x:-38, z:0},
+  ];
+  roads.forEach(r=>{
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(r.w, r.d), roadMat);
+    road.rotation.x = -Math.PI/2;
+    road.position.set(r.x, 0.04, r.z);
+    road.receiveShadow = true;
+    scene.add(road);
+
+    // 发光边
+    const edgeMat = new THREE.MeshBasicMaterial({color: C.cyan, transparent:true, opacity:0.8});
+    const isH = r.w > r.d;
+    if(isH){
+      const top = new THREE.Mesh(new THREE.PlaneGeometry(r.w, 0.08), edgeMat);
+      top.rotation.x = -Math.PI/2;
+      top.position.set(r.x, 0.06, r.z - r.d/2);
+      scene.add(top); techItems.push(top);
+      const bot = top.clone();
+      bot.position.set(r.x, 0.06, r.z + r.d/2);
+      scene.add(bot); techItems.push(bot);
+    } else {
+      const left = new THREE.Mesh(new THREE.PlaneGeometry(0.08, r.d), edgeMat);
+      left.rotation.x = -Math.PI/2;
+      left.position.set(r.x - r.w/2, 0.06, r.z);
+      scene.add(left); techItems.push(left);
+      const right = left.clone();
+      right.position.set(r.x + r.w/2, 0.06, r.z);
+      scene.add(right); techItems.push(right);
+    }
+  });
+}
+
+/* ============================================================
+   车辆（cyan 发光拖尾感）
+============================================================ */
+const cars = [];
+function buildCars(){
+  const colors = [0xff5544, 0x44aaff, 0xffdd66, 0xffffff, 0x66ffcc];
+  for(let i=0;i<8;i++){
+    const car = new THREE.Mesh(
+      new THREE.BoxGeometry(1.4, 0.5, 0.7),
+      new THREE.MeshStandardMaterial({
+        color: colors[i%colors.length], metalness:0.7, roughness:0.3,
+        emissive: colors[i%colors.length], emissiveIntensity:0.4
+      })
+    );
+    car.castShadow = true;
+    // 随机分到 4 条道路
+    const road = i%4;
+    if(road===0)      car.position.set(-40+i*10, 0.3, 20);
+    else if(road===1){car.position.set(40-i*10, 0.3, -20); car.rotation.y = Math.PI;}
+    else if(road===2){car.position.set(38, 0.3, -20+i*6); car.rotation.y = Math.PI/2;}
+    else             {car.position.set(-38, 0.3, 20-i*6); car.rotation.y = -Math.PI/2;}
+    scene.add(car);
+    cars.push({obj:car, road, speed: 0.06+Math.random()*0.04, mat:car.material});
+  }
+}
+
+/* ============================================================
+   相机控制 + 热点投影
+============================================================ */
+let yaw = Math.PI/4, pitch = 0.55, dist = 60;
+let autoRotate = true, lastUserTs = 0;
+const sceneContainer = document.getElementById('scene');
+let dragging = false, lastX=0, lastY=0;
+sceneContainer.addEventListener('mousedown', e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;autoRotate=false;lastUserTs=Date.now();});
+window.addEventListener('mouseup', ()=>dragging=false);
+window.addEventListener('mousemove', e=>{
+  if(!dragging)return;
+  yaw -= (e.clientX-lastX)*0.006;
+  pitch = Math.max(.2, Math.min(1.2, pitch - (e.clientY-lastY)*0.004));
+  lastX=e.clientX;lastY=e.clientY;lastUserTs=Date.now();
+});
+sceneContainer.addEventListener('wheel', e=>{
+  e.preventDefault();
+  dist = Math.max(30, Math.min(100, dist + e.deltaY*0.05));
+  lastUserTs = Date.now(); autoRotate=false;
+},{passive:false});
+
+function updateCamera(dt){
+  if(!autoRotate && Date.now()-lastUserTs>6000) autoRotate=true;
+  if(autoRotate) yaw += dt*0.045;
+  const r = dist*0.55;
+  camera.position.x = Math.sin(yaw)*Math.cos(pitch)*r;
+  camera.position.z = Math.cos(yaw)*Math.cos(pitch)*r;
+  camera.position.y = Math.sin(pitch)*r;
+  camera.lookAt(0, 3, 0);
+}
+
+const tmpV = new THREE.Vector3();
+function updateHotspots(){
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  hotspots3D.forEach(({obj, el})=>{
+    tmpV.setFromMatrixPosition(obj.matrixWorld);
+    tmpV.project(camera);
+    const behind = tmpV.z > 1;
+    const x = (tmpV.x*0.5+0.5)*w;
+    const y = (-tmpV.y*0.5+0.5)*h;
+    el.style.left = x+'px'; el.style.top = y+'px';
+    el.style.opacity = behind ? 0 : 1;
+  });
+}
+
+/* ============================================================
+   主循环
+============================================================ */
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  const t = clock.elapsedTime;
+
+  updateCamera(dt);
+
+  // 车辆
+  cars.forEach(c=>{
+    if(c.road===0){ c.obj.position.x += c.speed; if(c.obj.position.x>48) c.obj.position.x=-48; }
+    else if(c.road===1){ c.obj.position.x -= c.speed; if(c.obj.position.x<-48) c.obj.position.x=48; }
+    else if(c.road===2){ c.obj.position.z += c.speed; if(c.obj.position.z>20) c.obj.position.z=-20; }
+    else { c.obj.position.z -= c.speed; if(c.obj.position.z<-20) c.obj.position.z=20; }
+  });
+
+  animItems.forEach(a=>a.update(t));
+  updateHotspots();
+
+  composer.render();
+}
+
+/* ============================================================
+   三种模式切换：model（米黄低模） / day（科技日间） / night（科技夜间）
+============================================================ */
+const WARM_BODY = [0xc8bfb2,0xbdb3a5,0xc2b6a5,0xccbfb0,0xbfad8e,0xa89a85,0xa89a85,0xd4c9b8];
+const WARM_ROOF = 0x8a6840;
+
+function setMode(mode){
+  currentMode = mode;
+  const isModel = mode === 'model';
+  const isNight = mode === 'night';
+
+  // 科技元素显隐
+  techItems.forEach(o=>{ if(o) o.visible = !isModel; });
+
+  // 建筑材质
+  allBuildings.forEach((b,i)=>{
+    if(isModel){
+      b.userData.bodyMat.color.setHex(WARM_BODY[i % WARM_BODY.length]);
+      b.userData.bodyMat.emissive.setHex(0x000000);
+      b.userData.bodyMat.emissiveIntensity = 0;
+      b.userData.bodyMat.metalness = 0.1;
+      b.userData.bodyMat.roughness = 0.8;
+      b.userData.roofMat.color.setHex(WARM_ROOF);
+      b.userData.roofMat.emissive.setHex(0x000000);
+      b.userData.roofMat.emissiveIntensity = 0;
+      b.userData.winMat.color.setHex(0x88bbdd);
+      b.userData.winMat.emissive.setHex(0x000000);
+      b.userData.winMat.emissiveIntensity = 0;
+    } else {
+      b.userData.bodyMat.color.setHex(isNight ? C.wallNight : C.wallDay);
+      b.userData.bodyMat.emissive.setHex(0x081830);
+      b.userData.bodyMat.emissiveIntensity = isNight ? 0.35 : 0.15;
+      b.userData.bodyMat.metalness = 0.5;
+      b.userData.bodyMat.roughness = 0.5;
+      b.userData.roofMat.color.setHex(isNight ? C.roofNight : C.roofDay);
+      b.userData.roofMat.emissive.setHex(0x0a1a32);
+      b.userData.roofMat.emissiveIntensity = 0.4;
+      b.userData.winMat.color.setHex(0xffb866);
+      b.userData.winMat.emissive.setHex(C.window);
+      b.userData.winMat.emissiveIntensity = isNight ? 1.4 : 0.4;
+    }
+    b.userData.bodyMat.needsUpdate = true;
+  });
+
+  // 体育馆圆顶
+  if(window.__dome){
+    if(isModel){
+      window.__dome.material.color.setHex(0xe0d5c3);
+      window.__dome.material.emissiveIntensity = 0;
+      window.__dome.material.metalness = 0.3;
+    } else {
+      window.__dome.material.color.setHex(0x1a3458);
+      window.__dome.material.emissiveIntensity = 0.5;
+      window.__dome.material.metalness = 0.6;
+    }
+  }
+
+  // 草坪、跑道
+  if(window.__grassMat){
+    window.__grassMat.color.setHex(isModel ? 0x3f7a38 : C.grassNight);
+    window.__grassMat.emissiveIntensity = isModel ? 0 : 0.4;
+  }
+  if(window.__trackMat){
+    window.__trackMat.color.setHex(isModel ? 0xd16a4a : C.trackRed);
+    window.__trackMat.emissiveIntensity = isModel ? 0 : 0.3;
+  }
+
+  // 树
+  treeMats.forEach(m=>{
+    m.color.setHex(isModel ? 0x2f6e38 : 0x1a4a5a);
+    m.emissive.setHex(isModel ? 0x000000 : 0x0a2a35);
+    m.emissiveIntensity = isModel ? 0 : 0.6;
+  });
+
+  // 地面
+  if(groundMesh){
+    groundMesh.material.color.setHex(isModel ? 0x2a3a52 : C.ground);
+    groundMesh.material.metalness = isModel ? 0.0 : 0.3;
+    groundMesh.material.roughness = isModel ? 0.95 : 0.6;
+  }
+
+  // 车辆 emissive
+  cars.forEach(c=>{
+    c.mat.emissiveIntensity = isModel ? 0 : 0.4;
+    c.mat.metalness = isModel ? 0.3 : 0.7;
+  });
+
+  // 全局光照 / 雾 / Bloom / 背景
+  const appBg = document.getElementById('app');
+  if(isModel){
+    ambLight.intensity = 0.7;     ambLight.color.setHex(0x99aabb);
+    hemiLight.intensity = 0.85;
+    keyLight.intensity = 1.3;     keyLight.color.setHex(0xffeecc);
+    scene.fog.color.setHex(0x223344); scene.fog.density = 0.006;
+    renderer.toneMappingExposure = 1.0;
+    window.__bloom.strength = 0.05;
+    appBg.style.background = 'radial-gradient(ellipse at 50% 35%, #1b3557 0%, #0a1628 50%, #050912 100%)';
+  } else if(isNight){
+    ambLight.intensity = 0.35;    ambLight.color.setHex(0x3a5a8c);
+    hemiLight.intensity = 0.45;
+    keyLight.intensity = 0.6;     keyLight.color.setHex(0x88bbff);
+    scene.fog.color.setHex(0x030a1a); scene.fog.density = 0.018;
+    renderer.toneMappingExposure = 1.1;
+    window.__bloom.strength = 0.85;
+    appBg.style.background = 'radial-gradient(ellipse 90% 70% at 50% 45%, #132a52 0%, #0a1730 40%, #040918 75%, #01030a 100%)';
+  } else { // day tech
+    ambLight.intensity = 0.75;    ambLight.color.setHex(0x8ab0e0);
+    hemiLight.intensity = 0.8;
+    keyLight.intensity = 1.2;     keyLight.color.setHex(0xffeecc);
+    scene.fog.color.setHex(0x1a3a68); scene.fog.density = 0.012;
+    renderer.toneMappingExposure = 1.3;
+    window.__bloom.strength = 0.45;
+    appBg.style.background = 'radial-gradient(ellipse 90% 70% at 50% 45%, #2a4d80 0%, #1a3258 40%, #0a1830 80%, #050a18 100%)';
+  }
+}
+
+function setClean(c){
+  document.querySelectorAll('.panel,.topbar,.bottom-nav,.hotspot').forEach(el=>{
+    el.style.transition = 'opacity .5s';
+    el.style.opacity = c ? 0 : 1;
+    el.style.pointerEvents = c ? 'none' : '';
+  });
+}
+
+/* ============ UI 绑定 ============ */
+const modeBtns = {
+  model: document.getElementById('btn-model'),
+  day:   document.getElementById('btn-day'),
+  night: document.getElementById('btn-night'),
+};
+function pickMode(m){
+  setMode(m);
+  Object.entries(modeBtns).forEach(([k,el])=>el.classList.toggle('active', k===m));
+}
+modeBtns.model.onclick = ()=>pickMode('model');
+modeBtns.day.onclick   = ()=>pickMode('day');
+modeBtns.night.onclick = ()=>pickMode('night');
+document.getElementById('btn-full').onclick = ()=>{if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();};
+document.getElementById('mode-stat').onclick = ()=>{setClean(false);document.getElementById('mode-stat').classList.add('active');document.getElementById('mode-clean').classList.remove('active');};
+document.getElementById('mode-clean').onclick = ()=>{setClean(true);document.getElementById('mode-clean').classList.add('active');document.getElementById('mode-stat').classList.remove('active');};
+
+// 地图模式切换（1：3D 场景 / 2：rjgf003.png 背景图）
+document.querySelectorAll('.map-mode-switch span').forEach(el=>{
+  el.onclick = ()=>{
+    const m = el.dataset.mapmode;
+    document.querySelectorAll('.map-mode-switch span').forEach(s=>s.classList.toggle('active', s===el));
+    document.body.classList.toggle('mapmode-2', m==='2');
+  };
+});
+
+window.addEventListener('resize', ()=>{
+  const w = sceneContainer.clientWidth, h = sceneContainer.clientHeight;
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w,h);
+  composer.setSize(w,h);
+});
+
+/* ============ 启动 ============ */
+initScene();
+pickMode('night'); // 默认夜间科技风
+setTimeout(()=>document.getElementById('loading').classList.add('hide'), 1000);
+</script>
+</body>
+</html>
